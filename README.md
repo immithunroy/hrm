@@ -172,7 +172,17 @@ The project is deployed with Docker Compose on a Linux server (`db`, `backend`, 
 docker compose up -d --build
 ```
 
-The backend automatically runs `npx prisma db push --skip-generate` before starting, so schema changes are applied on every backend start. The frontend is served on port 9000 via nginx and the backend API is proxied at `/api`.
+The backend automatically runs `npx prisma db push --skip-generate` before starting, so schema changes are applied on every backend start. The frontend is served on port **8060** via nginx and the backend API is proxied at `/api`.
+
+### CI/CD
+
+Automated deployment via GitHub Actions. Push to `main` branch triggers:
+1. SSH into production server
+2. `git pull` latest code
+3. `docker compose build` backend and frontend
+4. `docker compose up -d` to restart services
+
+Server: `/opt/hrm/` on `103.177.54.6:8060`
 
 ## API Documentation
 
