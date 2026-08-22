@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const holiday_controller_1 = require("../controllers/holiday.controller");
+const authenticateToken_1 = require("../middleware/authenticateToken");
+const router = (0, express_1.Router)();
+router.use(authenticateToken_1.authenticateToken);
+router.get('/', (0, authenticateToken_1.authorize)('ADMIN', 'MANAGER', 'HR', 'EMPLOYEE'), holiday_controller_1.getHolidays);
+router.post('/', (0, authenticateToken_1.authorize)('ADMIN', 'HR'), holiday_controller_1.createHoliday);
+router.post('/bulk', (0, authenticateToken_1.authorize)('ADMIN', 'HR'), holiday_controller_1.bulkCreateHolidays);
+router.post('/sync-google', (0, authenticateToken_1.authorize)('ADMIN', 'HR'), holiday_controller_1.syncGoogleHolidays);
+router.put('/:id', (0, authenticateToken_1.authorize)('ADMIN', 'HR'), holiday_controller_1.updateHoliday);
+router.delete('/:id', (0, authenticateToken_1.authorize)('ADMIN', 'HR'), holiday_controller_1.deleteHoliday);
+exports.default = router;

@@ -1,0 +1,669 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id                String          @id @default(uuid())
+  employeeId        String          @unique
+  firstName         String
+  lastName          String
+  middleName        String?
+  email             String          @unique
+  phone             String?
+  password          String?         // Hashed password for authentication
+  dateOfBirth       DateTime?
+  gender            Gender?
+  maritalStatus     MaritalStatus?
+  hireDate          DateTime
+  departmentId      String
+  positionId        String
+  employmentType    EmploymentType
+  status            EmployeeStatus  @default(ACTIVE)
+  salary            Decimal         @default(0)  // Gross salary (used when salaryType=GROSS)
+  // Salary structure: GROSS = flat gross amount, SCALED = basic + allowances
+  salaryType        String          @default("GROSS")  // GROSS or SCALED
+  basicScale        Decimal         @default(0)  // Basic scale amount (used when salaryType=SCALED)
+  accommodationRate Decimal         @default(50)  // % of basic (default 50%)
+  medicalRate       Decimal         @default(25)  // % of basic (default 25%)
+  transportRate     Decimal         @default(15)  // % of basic (default 15%)
+  mobileInternet    Decimal         @default(0)   // Fixed amount for mobile/internet
+  bankAccountNumber String?
+  bankName          String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  country           String?
+  // Govt. provided photo ID (NID / Driving License / Passport).
+  govtIdType        GovtIdType?
+  govtIdNumber      String?
+  // Employee documents (relative paths under /api/uploads).
+  profileImageUrl   String? // Photograph
+  idDocumentUrl     String? // Scanned photo ID / NID / DL / Passport
+  cvUrl             String? // Curriculum vitae
+  employmentEndDate DateTime?
+  // Exempt from attendance punching (e.g. co-founders / admin staff).
+  // Punches are ignored, they are excluded from attendance counts, and
+  // payroll treats them as fully present.
+  attendanceExempt   Boolean         @default(false)
+  // Exempt from payroll processing (e.g. admin / co-founder staff).
+  // When true, processPayroll skips this employee entirely.
+  payrollExempt     Boolean         @default(false)
+  // Weekly holiday (default Friday). Some employees choose Sunday instead.
+  weeklyHoliday     String          @default("FRIDAY")
+  // Role for authorization (ADMIN, MANAGER, HR, FINANCE, EMPLOYEE).
+  role              String          @default("EMPLOYEE")
+  // Device PIN used for PIN login on the ZKT terminal (max 8 chars).
+  pin               String?
+  // Numeric internal user id on the ZKT device (1..3000).
+  deviceUid         Int?
+  // Religion (for festival bonus eligibility)
+  religion          Religion?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  department        Department      @relation(fields: [departmentId], references: [id])
+  position          Position        @relation(fields: [positionId], references: [id])
+  attendanceRecords Attendance[]    @relation("EmployeeAttendance")
+  payrollRecords    Payroll[]       @relation("EmployeePayroll")
+    leaveRequests     LeaveRequest[]  @relation("EmployeeLeaveRequests")
+    leaveBalances     LeaveBalance[]  @relation("EmployeeLeaveBalances")
+  shiftAssignments  ShiftAssignment[] @relation("EmployeeShiftAssignments")
+  trainingRecords   TrainingRecord[] @relation("EmployeeTrainingRecords")
+  performanceReviews PerformanceReview[] @relation("EmployeePerformanceReviews")
+  reviewedPerformanceReviews PerformanceReview[] @relation("EmployeePerformanceReviewer")
+  managesDepartment Department?   @relation("DepartmentManager")
+  loans            Loan[]          @relation("EmployeeLoans")
+  festivalBonuses  FestivalBonus[] @relation("EmployeeFestivalBonuses")
+  
+  @@index([employeeId])
+  @@index([email])
+  @@index([departmentId, positionId])
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  code        String   @unique
+  managerId   String?  @unique
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employees   Employee[]
+  manager     Employee? @relation("DepartmentManager", fields: [managerId], references: [id])
+  positions   Position[]
+  recruitments Recruitment[]
+  
+  @@index([code])
+}
+
+model Position {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  departmentId String
+  level       PositionLevel
+  minSalary   Decimal
+  maxSalary   Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employees   Employee[]
+  department  Department @relation(fields: [departmentId], references: [id])
+  recruitments Recruitment[]
+  
+  @@index([departmentId])
+}
+
+model Attendance {
+  id             String   @id @default(uuid())
+  employeeId     String
+  checkIn        DateTime?
+  checkOut       DateTime?
+  date           DateTime @default(now())
+  status         AttendanceStatus
+  workHours      Float?
+  overtimeHours  Float?
+  earlyOvertimeHours Float?
+  lateMinutes    Int?
+  earlyDepartureMinutes Int?
+  // Raw punch times (ISO strings) for the day, sorted ascending. First = check-in,
+  // last = check-out; intermediate out/in pairs are personal/errand breaks.
+  punches        Json?
+  autoCheckOut   Boolean? @default(false)
+  breakMinutes   Int?     // total personal-out (errand) time in minutes
+  errandCount    Int?     // number of out/in trips during the day
+  deviceId       String?  // ZKT device ID
+  deviceLogId    String?  // Original log ID from device
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation("EmployeeAttendance", fields: [employeeId], references: [id])
+  
+  @@index([employeeId, date])
+  @@index([date])
+  @@index([deviceId])
+  @@index([deviceLogId])
+}
+
+model LeaveBalance {
+  id           String   @id @default(uuid())
+  employeeId   String
+  year         Int
+  casualTotal  Int      @default(0)
+  casualUsed   Int      @default(0)
+  medicalTotal Int      @default(0)
+  medicalUsed  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  employee     Employee @relation("EmployeeLeaveBalances", fields: [employeeId], references: [id])
+
+  @@unique([employeeId, year])
+  @@index([employeeId])
+}
+
+model Payroll {
+  id             String   @id @default(uuid())
+  employeeId     String
+  payPeriodStart DateTime
+  payPeriodEnd   DateTime
+  basicSalary    Decimal
+  overtimePay    Decimal
+  bonus          Decimal
+  deductions     Decimal
+  tax            Decimal
+  netPay         Decimal
+  paymentDate    DateTime
+  status         PaymentStatus
+  paymentMethod  PaymentMethod?
+  transactionId  String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation("EmployeePayroll", fields: [employeeId], references: [id])
+  
+  @@index([employeeId, payPeriodStart, payPeriodEnd])
+  @@index([paymentDate])
+  @@index([status])
+}
+
+model LeaveRequest {
+  id              String   @id @default(uuid())
+  employeeId      String
+  leaveType       LeaveType
+  startDate       DateTime
+  endDate         DateTime
+  daysRequested   Int
+  reason          String
+  status          LeaveRequestStatus @default(PENDING)
+  approvedBy      String?  // Manager ID
+  approvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  employee        Employee @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id])
+  
+  @@index([employeeId])
+  @@index([status])
+}
+
+model Shift {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  startTime   String   // HH:mm format
+  endTime     String   // HH:mm format
+  breakTime   Int?     // minutes
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  assignments ShiftAssignment[]
+}
+
+model ShiftAssignment {
+  id             String   @id @default(uuid())
+  employeeId     String
+  shiftId        String
+  date           DateTime
+  assignedBy     String?  // Manager ID
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation("EmployeeShiftAssignments", fields: [employeeId], references: [id])
+  shift          Shift    @relation(fields: [shiftId], references: [id])
+  
+  @@index([employeeId, date])
+  @@index([shiftId, date])
+  @@index([date])
+}
+
+model Recruitment {
+  id             String   @id @default(uuid())
+  positionId     String
+  jobTitle       String
+  departmentId   String
+  openings       Int
+  status         RecruitmentStatus @default(OPEN)
+  description    String?
+  requirements   String?
+  responsibilities String?
+  location       String?
+  employmentType EmploymentType
+  salaryRangeMin Decimal?
+  salaryRangeMax Decimal?
+  postedDate     DateTime @default(now())
+  closingDate    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  department     Department @relation(fields: [departmentId], references: [id])
+  position       Position   @relation(fields: [positionId], references: [id])
+  applicants     Applicant[]
+  
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([status])
+}
+
+model Applicant {
+  id             String   @id @default(uuid())
+  recruitmentId  String
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  // Education history: [{ degree, institution, field, startYear, endYear }]
+  education      Json?
+  // Address / communication details
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  country        String?
+  resumeUrl      String?
+  // Uploaded CV file (pdf/jpg) relative path under /api/uploads
+  cvUrl          String?
+  coverLetter    String?
+  appliedDate    DateTime @default(now())
+  status         ApplicationStatus @default(NEW)
+  notes          String?
+  interviewedBy  String?  // Employee ID
+  interviewedAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  recruitment    Recruitment @relation(fields: [recruitmentId], references: [id])
+  
+  @@index([recruitmentId])
+  @@index([email])
+  @@index([status])
+}
+
+model TrainingRecord {
+  id             String   @id @default(uuid())
+  employeeId     String
+  trainingTitle  String
+  trainingType   String
+  provider       String?
+  startDate      DateTime
+  endDate        DateTime?
+  hours          Int?
+  cost           Decimal?
+  certificateUrl String?
+  status         TrainingStatus @default(COMPLETED)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation("EmployeeTrainingRecords", fields: [employeeId], references: [id])
+  
+  @@index([employeeId])
+  @@index([status])
+}
+
+model PerformanceReview {
+  id             String   @id @default(uuid())
+  employeeId     String
+  reviewerId     String   // Manager/Supervisor ID
+  reviewPeriod   String   // e.g., "Q1 2024", "Annual 2023"
+  reviewDate     DateTime
+  rating         Int      // 1-5 scale
+  strengths      String?
+  areasForImprovement String?
+  goals          String?
+  comments       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation("EmployeePerformanceReviews", fields: [employeeId], references: [id])
+  reviewer       Employee @relation("EmployeePerformanceReviewer", fields: [reviewerId], references: [id])
+  
+  @@index([employeeId])
+  @@index([reviewerId])
+  @@index([reviewDate])
+}
+
+model Device {
+  id             String   @id @default(uuid())
+  deviceId       String   @unique  // ZKT device ID
+  name           String
+  ipAddress      String
+  port           Int      @default(4370)
+  location       String?
+  description    String?
+  isActive       Boolean  @default(true)
+  lastSeen       DateTime?
+  totalUsers     Int      @default(0)
+  totalLogs      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([deviceId])
+  @@index([ipAddress])
+  @@index([isActive])
+}
+
+// Enums for Loan
+enum LoanStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
+}
+
+enum LoanFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+  WAIVED
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String   // Employee ID
+  title       String
+  message     String
+  type        NotificationType
+  isRead      Boolean  @default(false)
+  relatedId   String?  // Reference to other entities (leave request ID, etc.)
+  relatedType String?  // Type of related entity
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Loan model - tracks employee loans
+model Loan {
+  id              String       @id @default(uuid())
+  employeeId      String
+  amount          Decimal      // Principal loan amount
+  interestRate    Decimal      @default(0) // Annual interest rate percentage
+  totalAmount     Decimal      // Principal + interest
+  remainingAmount Decimal      // Amount still to be paid
+  status          LoanStatus   @default(PENDING)
+  purpose         String?
+  approvedBy      String?      // Manager/Admin ID
+  approvedAt      DateTime?
+  disbursedAt     DateTime?
+  startDate       DateTime     // When repayments start
+  endDate         DateTime?    // Expected end date
+  installmentAmount Decimal?   // Fixed installment amount (optional)
+  installmentCount  Int?       // Total number of installments
+  frequency       LoanFrequency @default(MONTHLY)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  employee        Employee     @relation("EmployeeLoans", fields: [employeeId], references: [id])
+  installments    LoanInstallment[]
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+}
+
+// Loan installment/repayment tracking
+model LoanInstallment {
+  id          String           @id @default(uuid())
+  loanId      String
+  dueDate     DateTime
+  amount      Decimal          // Installment amount due
+  paidAmount  Decimal          @default(0) // Amount actually paid
+  status      InstallmentStatus @default(PENDING)
+  paidAt      DateTime?
+  payrollId   String?          // Reference to payroll record where deducted
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  loan        Loan             @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@index([loanId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([payrollId])
+}
+
+// Public / other holidays marked by the admin, one row per day.
+// These can be uploaded or marked for any month at any point in the month.
+model Holiday {
+  id        String   @id @default(uuid())
+  date      DateTime @unique // UTC instant of Dhaka midnight for that calendar day
+  name      String
+  year      Int
+  month     Int
+  createdAt DateTime @default(now())
+
+  @@index([year, month])
+  @@index([date])
+}
+
+// Key/value system settings (payroll rules, etc.)
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMPORARY
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+  RETIRED
+  SUSPENDED
+}
+
+enum GovtIdType {
+  NID
+  DRIVING_LICENSE
+  PASSPORT
+}
+
+enum PositionLevel {
+  ENTRY
+  ASSOCIATE
+  MID_LEVEL
+  SENIOR
+  LEAD
+  MANAGER
+  DIRECTOR
+  EXECUTIVE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EARLY
+  LEAVE
+  HOLIDAY
+  HALF
+  WEEKEND
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSED
+  PAID
+  APPROVED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CHECK
+  CASH
+  MOBILE_MONEY
+}
+
+  enum LeaveType {
+    VACATION
+    CASUAL
+    SICK
+    MEDICAL
+    PERSONAL
+  MATERNITY
+  PATERNITY
+  BEREAVEMENT
+  JURY_DUTY
+  MILITARY
+  UNPAID
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum RecruitmentStatus {
+  OPEN
+  CLOSED
+  ON_HOLD
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWED
+  INTERVIEWED
+  OFFERED
+  HIRED
+  REJECTED
+}
+
+enum TrainingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  LEAVE_REQUEST
+  SHIFT_CHANGE
+  PAYROLL_READY
+  PERFORMANCE_REVIEW
+  TRAINING_REMINDER
+}
+
+enum Religion {
+  ISLAM
+  HINDU
+  BUDDHIST
+  CHRISTIAN
+  OTHER
+}
+
+enum FestivalBonusType {
+  EID_UL_FITR
+  EID_UL_ADHA
+  OTHER
+}
+
+enum BonusCalculationType {
+  BASIC_SALARY   // 2x basic salary
+  GROSS_SALARY   // 1x gross salary
+}
+
+enum BonusPaymentMode {
+  ONE_TIME       // Full payment at once
+  TWO_INSTALLMENTS // Paid in 2 installments
+}
+
+enum BonusInstallmentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+// Festival bonus tracking for employees
+model FestivalBonus {
+  id                 String               @id @default(uuid())
+  employeeId         String
+  festivalType       FestivalBonusType
+  customFestivalName String?              // For OTHER religion's festival
+  year               Int
+  bonusType          BonusCalculationType @default(BASIC_SALARY)
+  totalAmount        Decimal
+  paymentMode        BonusPaymentMode     @default(ONE_TIME)
+  installment1Amount Decimal?             // First installment amount
+  installment1Date   DateTime?            // First installment date
+  installment1Status BonusInstallmentStatus @default(PENDING)
+  installment2Amount Decimal?             // Second installment amount
+  installment2Date   DateTime?            // Second installment date
+  installment2Status BonusInstallmentStatus @default(PENDING)
+  status             PaymentStatus        @default(PENDING)
+  approvedBy         String?
+  approvedAt         DateTime?
+  notes              String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  employee           Employee             @relation("EmployeeFestivalBonuses", fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([year])
+  @@index([festivalType])
+  @@index([status])
+}
