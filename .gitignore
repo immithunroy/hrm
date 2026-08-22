@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+backup_pre_fixes/
+scripts/
+mobile/
+*.tar.gz
+*.sql
+*.sh
+*.js
+!frontend/vite.config.*
+!backend/scripts/*.ts
