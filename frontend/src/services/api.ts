@@ -24,7 +24,13 @@ class ApiService {
     if (response.status === 401) {
       // Token expired or invalid — clear and redirect to login
       localStorage.removeItem('accessToken');
-      window.location.href = '/login';
+      // Notify other tabs
+      try {
+        const bc = new BroadcastChannel('hrm-auth');
+        bc.postMessage({ type: 'auth:logout' });
+        bc.close();
+      } catch {}
+      window.location.href = '/login?error=session_expired';
       throw new Error('Session expired. Please log in again.');
     }
 
@@ -96,7 +102,12 @@ class ApiService {
 
     if (response.status === 401) {
       localStorage.removeItem('accessToken');
-      window.location.href = '/login';
+      try {
+        const bc = new BroadcastChannel('hrm-auth');
+        bc.postMessage({ type: 'auth:logout' });
+        bc.close();
+      } catch {}
+      window.location.href = '/login?error=session_expired';
       throw new Error('Session expired. Please log in again.');
     }
 

@@ -6,8 +6,11 @@ import { Server } from 'socket.io';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+import expressSession from 'express-session';
 import { errorHandler, notFound } from './utils/appError';
+import { configureGooglePassport, passport } from './config/google';
 import authRoutes from './routes/auth.routes';
+import googleAuthRoutes from './routes/googleAuth.routes';
 import employeeRoutes from './routes/employee.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import payrollRoutes from './routes/payroll.routes';
@@ -52,6 +55,23 @@ const uploadsDir = path.join(process.cwd(), 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/api/uploads', express.static(uploadsDir));
 
+// Express session (required for Passport Google OAuth flow)
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.JWT_SECRET || 'session-secret-change-in-production';
+app.use(expressSession({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 10 * 60 * 1000, // 10 minutes - only needed for OAuth flow
+  },
+}));
+
+// Passport initialization (Google OAuth)
+app.use(passport.initialize());
+app.use(passport.session());
+configureGooglePassport();
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -63,6 +83,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', googleAuthRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/payroll', payrollRoutes);

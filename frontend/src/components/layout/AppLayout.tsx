@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 import {
   LayoutDashboard,
   Users,
@@ -42,7 +43,12 @@ const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout', {});
+    } catch {
+      // Ignore errors — proceed with local logout
+    }
     logout();
     navigate('/login');
   };

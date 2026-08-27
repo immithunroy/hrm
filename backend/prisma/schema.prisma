@@ -66,6 +66,10 @@ model Employee {
   deviceUid         Int?
   // Religion (for festival bonus eligibility)
   religion          Religion?
+  // Google OAuth fields
+  googleId          String?         @unique
+  googleEmail       String?
+  googleLinkedAt    DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   department        Department      @relation(fields: [departmentId], references: [id])

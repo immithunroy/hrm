@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, LoginFormValues, RegisterFormValues } from '../types/auth';
 import { api } from '../services/api';
 
@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (credentials: LoginFormValues) => Promise<void>;
   register: (userData: RegisterFormValues) => Promise<void>;
   logout: () => void;
+  handleGoogleCallback: (token: string) => Promise<void>;
 }
 
 interface AuthResponse {
@@ -53,17 +54,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(res.data.employee);
   };
 
-  const logout = () => {
+  const handleGoogleCallback = useCallback(async (token: string) => {
+    localStorage.setItem('accessToken', token);
+    try {
+      const res = await api.get<{ success: boolean; data: User }>('/auth/me');
+      setUser(res.data);
+    } catch {
+      localStorage.removeItem('accessToken');
+      setUser(null);
+      throw new Error('Failed to load user profile after Google authentication.');
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    // Notify other tabs before clearing
+    try {
+      const bc = new BroadcastChannel('hrm-auth');
+      bc.postMessage({ type: 'auth:logout' });
+      bc.close();
+    } catch {
+      // BroadcastChannel not supported or already closed
+    }
     localStorage.removeItem('accessToken');
     setUser(null);
-  };
+  }, []);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, handleGoogleCallback }}>
       {children}
     </AuthContext.Provider>
   );
