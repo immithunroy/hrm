@@ -43,7 +43,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma db push --skip-generate && node dist/server.js"
+    command: sh -c "npx prisma db push --skip-generate --accept-data-loss && node dist/server.js"
 
   frontend:
     build: ./frontend
