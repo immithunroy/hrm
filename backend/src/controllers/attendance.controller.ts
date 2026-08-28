@@ -570,6 +570,209 @@ export const getAttendanceStats = async (req: Request, res: Response, next: Next
   }
 };
 
+/**
+ * Mobile check-in (employee self-service)
+ */
+export const mobileCheckIn = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.userId!;
+    if (!employeeId) return next(new AppError('Unauthorized', 401));
+
+    // Get today's date range (Dhaka time)
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    // Check if already checked in today
+    const existing = await prisma.attendance.findFirst({
+      where: {
+        employeeId,
+        OR: [
+          { date: { gte: todayStart, lt: todayEnd } },
+          { checkIn: { gte: todayStart, lt: todayEnd } }
+        ]
+      }
+    });
+
+    if (existing && existing.checkIn) {
+      return next(new AppError('Already checked in today', 400));
+    }
+
+    // Determine status based on shift (default 9 AM start)
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const status = (hour > 9 || (hour === 9 && minute > 0)) ? 'LATE' : 'PRESENT';
+
+    let attendance;
+    if (existing) {
+      // Update existing status-only record
+      attendance = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: {
+          checkIn: now,
+          status,
+          deviceId: 'MOBILE',
+          punches: [now.toISOString()]
+        }
+      });
+    } else {
+      // Create new attendance record
+      attendance = await prisma.attendance.create({
+        data: {
+          employeeId,
+          checkIn: now,
+          date: now,
+          status,
+          workHours: 0,
+          overtimeHours: 0,
+          earlyOvertimeHours: 0,
+          lateMinutes: status === 'LATE' ? (hour - 9) * 60 + minute : 0,
+          earlyDepartureMinutes: 0,
+          breakMinutes: 0,
+          errandCount: 0,
+          punches: [now.toISOString()],
+          autoCheckOut: false,
+          deviceId: 'MOBILE'
+        }
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        attendance,
+        message: `Checked in at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Mobile check-out (employee self-service)
+ */
+export const mobileCheckOut = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.userId!;
+    if (!employeeId) return next(new AppError('Unauthorized', 401));
+
+    // Find today's attendance record
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const attendance = await prisma.attendance.findFirst({
+      where: {
+        employeeId,
+        OR: [
+          { date: { gte: todayStart, lt: todayEnd } },
+          { checkIn: { gte: todayStart, lt: todayEnd } }
+        ]
+      }
+    });
+
+    if (!attendance) {
+      return next(new AppError('No check-in record found for today', 400));
+    }
+
+    if (attendance.checkOut) {
+      return next(new AppError('Already checked out today', 400));
+    }
+
+    if (!attendance.checkIn) {
+      return next(new AppError('Cannot check out without checking in first', 400));
+    }
+
+    // Calculate work hours
+    const checkInTime = new Date(attendance.checkIn).getTime();
+    const checkOutTime = now.getTime();
+    const workHoursMs = checkOutTime - checkInTime;
+    const workHours = Math.round((workHoursMs / (1000 * 60 * 60)) * 100) / 100;
+
+    // Calculate overtime (after 9 hours)
+    const overtimeHours = workHours > 9 ? Math.round((workHours - 9) * 100) / 100 : 0;
+
+    // Update punches
+    const punches = Array.isArray(attendance.punches) ? [...attendance.punches] : [];
+    punches.push(now.toISOString());
+
+    const updated = await prisma.attendance.update({
+      where: { id: attendance.id },
+      data: {
+        checkOut: now,
+        workHours,
+        overtimeHours,
+        earlyDepartureMinutes: 0,
+        punches
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        attendance: updated,
+        message: `Checked out at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}. Work hours: ${workHours}`
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get my attendance (employee self-service)
+ */
+export const getMyAttendance = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.userId!;
+    if (!employeeId) return next(new AppError('Unauthorized', 401));
+
+    const { startDate, endDate, page = 1, limit = 30 } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
+    const where: any = { employeeId };
+    if (startDate || endDate) {
+      const start = normalizeDateBound(startDate as string, false);
+      const end = normalizeDateBound(endDate as string, true);
+      where.OR = [
+        { date: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) } },
+        { checkIn: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) } }
+      ];
+    }
+
+    const [records, total] = await prisma.$transaction([
+      prisma.attendance.findMany({
+        where,
+        orderBy: [{ date: 'desc' }, { checkIn: 'desc' }],
+        skip,
+        take
+      }),
+      prisma.attendance.count({ where })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        attendanceRecords: records,
+        pagination: {
+          page: parseInt(page as string),
+          limit: take,
+          total,
+          totalPages: Math.ceil(total / take)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getAttendanceRecords,
   getAttendanceById,
@@ -578,5 +781,8 @@ export default {
   deleteAttendanceRecord,
   getTodayAttendance,
   getAttendanceStats,
-  exportAttendance
+  exportAttendance,
+  mobileCheckIn,
+  mobileCheckOut,
+  getMyAttendance
 };

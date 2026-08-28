@@ -85,6 +85,9 @@ model Employee {
   managesDepartment Department?   @relation("DepartmentManager")
   loans            Loan[]          @relation("EmployeeLoans")
   festivalBonuses  FestivalBonus[] @relation("EmployeeFestivalBonuses")
+  tasks            Task[]          @relation("EmployeeTasks")
+  createdTasks     Task[]          @relation("EmployeeCreatedTasks")
+  announcements    Announcement[]  @relation("EmployeeAnnouncements")
   
   @@index([employeeId])
   @@index([email])
@@ -479,6 +482,48 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 }
 
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  assignedTo  String?
+  createdBy   String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  category    String?      // HRM, CUSTOMER, NETWORK, FIELD
+  relatedId   String?      // Reference to related entity
+  relatedType String?      // Type of related entity
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  assignee    Employee?    @relation("EmployeeTasks", fields: [assignedTo], references: [id])
+  creator     Employee?    @relation("EmployeeCreatedTasks", fields: [createdBy], references: [id])
+
+  @@index([assignedTo])
+  @@index([status])
+  @@index([category])
+  @@index([dueDate])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  priority  AnnouncementPriority @default(NORMAL)
+  authorId  String?
+  isActive  Boolean  @default(true)
+  startsAt  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author    Employee? @relation("EmployeeAnnouncements", fields: [authorId], references: [id])
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
 // Enums
 enum Gender {
   MALE
@@ -610,6 +655,27 @@ enum NotificationType {
   PAYROLL_READY
   PERFORMANCE_REVIEW
   TRAINING_REMINDER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AnnouncementPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 enum Religion {

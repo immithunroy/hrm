@@ -7,7 +7,10 @@ import {
   deleteAttendanceRecord,
   getTodayAttendance,
   getAttendanceStats,
-  exportAttendance
+  exportAttendance,
+  mobileCheckIn,
+  mobileCheckOut,
+  getMyAttendance
 } from '../controllers/attendance.controller';
 import { authenticateToken } from '../middleware/authenticateToken';
 import { authorize } from '../middleware/authenticateToken';
@@ -18,6 +21,11 @@ const router = Router();
 
 // Protect all routes
 router.use(authenticateToken);
+
+// Mobile check-in/check-out (must be before /:id)
+router.post('/checkin', authorize('EMPLOYEE', 'MANAGER', 'HR', 'ADMIN'), mobileCheckIn);
+router.post('/checkout', authorize('EMPLOYEE', 'MANAGER', 'HR', 'ADMIN'), mobileCheckOut);
+router.get('/my', authorize('EMPLOYEE', 'MANAGER', 'HR', 'ADMIN'), getMyAttendance);
 
 // Attendance routes
 router.get('/', authorize('ADMIN', 'MANAGER', 'HR', 'EMPLOYEE'), getAttendanceRecords);

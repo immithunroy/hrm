@@ -24,6 +24,8 @@ import settingsRoutes from './routes/settings.routes';
 import holidayRoutes from './routes/holiday.routes';
 import loanRoutes from './routes/loan.routes';
 import festivalBonusRoutes from './routes/festivalBonus.routes';
+import taskRoutes from './routes/task.routes';
+import announcementRoutes from './routes/announcement.routes';
 import { connectZKTDevice } from './services/zktService';
 import { syncGoogleBangladeshHolidays } from './services/holiday.service';
 import { prisma } from './config/database';
@@ -97,6 +99,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/festival-bonuses', festivalBonusRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // 404 handler
 app.use(notFound);
