@@ -118,11 +118,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = req.body;
 
+    // Support username (email prefix), full email, or employeeId
     const employee = await prisma.employee.findFirst({
       where: {
         OR: [
           { email },
           { employeeId: email },
+          { email: { startsWith: `${email}@` } },
         ]
       }
     });

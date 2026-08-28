@@ -16,7 +16,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ const LoginPage = () => {
     setError(null);
     
     try {
-      await login({ email, password });
+      await login({ email: username, password });
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -53,13 +53,13 @@ const LoginPage = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={loading}
               />
