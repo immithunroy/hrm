@@ -26,6 +26,7 @@ import announcementRoutes from './routes/announcement.routes';
 import { connectZKTDevice } from './services/zktService';
 import { syncGoogleBangladeshHolidays } from './services/holiday.service';
 import { prisma } from './config/database';
+import { migrateUsername } from './migrations/migrateUsername';
 
 // Load environment variables
 dotenv.config();
@@ -113,6 +114,9 @@ const startServer = async () => {
     // Test database connection
     await prisma.$connect();
     console.log('✅ Database connected successfully');
+
+    // Run username migration (idempotent)
+    await migrateUsername();
   } catch (error) {
     console.error('❌ Failed to connect to database:', error);
     process.exit(1);

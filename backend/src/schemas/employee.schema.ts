@@ -5,6 +5,7 @@ export const employeeSchema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   middleName: z.string().optional(),
   email: z.string().email('Invalid email format'),
+  username: z.string().min(1, 'Username is required').regex(/^[a-zA-Z0-9._-]+$/, 'Username must contain only letters, numbers, dots, hyphens, or underscores'),
   phone: z.string().optional(),
   dateOfBirth: z.string().optional(),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),

@@ -104,6 +104,7 @@ const emptyForm = () => ({
   lastName: '',
   middleName: '',
   email: '',
+  username: '',
   phone: '',
   dateOfBirth: '',
   gender: 'MALE',
@@ -221,6 +222,7 @@ const EmployeeDetailPage = () => {
       lastName: e.lastName || '',
       middleName: e.middleName || '',
       email: e.email || '',
+      username: e.username || '',
       phone: e.phone || '',
       dateOfBirth: toDateInput(e.dateOfBirth),
       gender: e.gender || 'MALE',
@@ -516,6 +518,10 @@ const EmployeeDetailPage = () => {
         <div className="space-y-2">
           <Label>Email *</Label>
           <Input type="email" value={form.email} onChange={e => setField('email', e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Username *</Label>
+          <Input value={form.username} onChange={e => setField('username', e.target.value)} placeholder="Auto-generated from email if empty" />
         </div>
         <div className="space-y-2">
           <Label>Phone</Label>

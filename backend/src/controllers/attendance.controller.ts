@@ -736,7 +736,7 @@ export const mobileCheckOut = async (req: Request, res: Response, next: NextFunc
 };
 
 /**
- * Get my attendance (employee self-service)
+ * Get my attendance (employee self-service) — merges with full calendar
  */
 export const getMyAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -744,18 +744,62 @@ export const getMyAttendance = async (req: Request, res: Response, next: NextFun
     if (!employeeId) return next(new AppError('Unauthorized', 401));
 
     const { startDate, endDate, page = 1, limit = 30 } = req.query;
+    const startBound = normalizeDateBound(startDate as string, false);
+    const endBound = normalizeDateBound(endDate as string, true);
+
+    // When a date range is provided, merge with full calendar (every day of month).
+    if (startBound && endBound) {
+      const where: any = {
+        employeeId,
+        OR: [
+          { date: { gte: startBound, lte: endBound } },
+          { checkIn: { gte: startBound, lte: endBound } }
+        ]
+      };
+
+      const allRecords = await prisma.attendance.findMany({
+        where,
+        orderBy: [{ date: 'asc' }, { checkIn: 'asc' }]
+      });
+
+      const merged = await mergeAttendanceWithCalendar(allRecords, {
+        start: startBound,
+        end: endBound,
+        employeeId
+      });
+
+      merged.sort((a, b) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        if (da !== db) return da - db;
+        const ia = a.checkIn ? new Date(a.checkIn).getTime() : Number.MAX_SAFE_INTEGER;
+        const ib = b.checkIn ? new Date(b.checkIn).getTime() : Number.MAX_SAFE_INTEGER;
+        return ia - ib;
+      });
+
+      const totalCount = merged.length;
+      const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+      const take = parseInt(limit as string);
+      const attendanceRecords = merged.slice(skip, skip + take);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          attendanceRecords,
+          pagination: {
+            page: parseInt(page as string),
+            limit: take,
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / take)
+          }
+        }
+      });
+    }
+
+    // Without date range: plain query.
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     const take = parseInt(limit as string);
-
     const where: any = { employeeId };
-    if (startDate || endDate) {
-      const start = normalizeDateBound(startDate as string, false);
-      const end = normalizeDateBound(endDate as string, true);
-      where.OR = [
-        { date: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) } },
-        { checkIn: { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) } }
-      ];
-    }
 
     const [records, total] = await prisma.$transaction([
       prisma.attendance.findMany({

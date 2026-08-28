@@ -10,6 +10,7 @@ datasource db {
 model Employee {
   id                String          @id @default(uuid())
   employeeId        String          @unique
+  username          String?         @unique
   firstName         String
   lastName          String
   middleName        String?
@@ -86,6 +87,7 @@ model Employee {
   announcements    Announcement[]  @relation("EmployeeAnnouncements")
   
   @@index([employeeId])
+  @@index([username])
   @@index([email])
   @@index([departmentId, positionId])
 }

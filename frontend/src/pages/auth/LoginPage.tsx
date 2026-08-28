@@ -34,7 +34,7 @@ const LoginPage = () => {
     setError(null);
     
     try {
-      await login({ email: username, password });
+      await login({ username, password });
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');

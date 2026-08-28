@@ -64,8 +64,11 @@ const getRangeForView = (view: ViewMode) => {
     return { start: dhakaDayRange(startDate).start, end: dhakaDayRange(now).end };
   }
   if (view === 'month') {
-    const startDate = new Date(now.getTime() - 29 * 24 * 3600 * 1000);
-    return { start: dhakaDayRange(startDate).start, end: dhakaDayRange(now).end };
+    // Show the full calendar month (1st to last day) in Dhaka time
+    const { y, m } = getDhakaDate(now);
+    const monthStart = Date.UTC(y, m, 1) - DHAKA_OFFSET_MS;
+    const monthEnd = Date.UTC(y, m + 1, 0) - DHAKA_OFFSET_MS + 24 * 3600 * 1000 - 1;
+    return { start: new Date(monthStart).toISOString(), end: new Date(monthEnd).toISOString() };
   }
   return dhakaDayRange(now);
 };
@@ -283,7 +286,7 @@ const AttendancePage = () => {
   const viewLabel =
     view === 'today' ? 'Today' :
     view === 'week' ? 'This Week (7 days)' :
-    view === 'month' ? 'This Month (30 days)' :
+    view === 'month' ? (() => { const { y, m } = getDhakaDate(new Date()); return new Date(y, m).toLocaleString('en-US', { month: 'long', year: 'numeric' }); })() :
     fromDate && toDate ? `${fromDate} to ${toDate}` :
     fromDate || toDate ? (fromDate || toDate) : 'Custom';
 

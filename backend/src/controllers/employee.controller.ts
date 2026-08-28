@@ -182,7 +182,7 @@ export const getEmployeeById = async (req: Request, res: Response, next: NextFun
 
 // Whitelist of fields allowed when creating an employee via the API.
 const CREATE_ALLOWED_FIELDS = [
-  'firstName', 'lastName', 'middleName', 'email', 'phone', 'dateOfBirth',
+  'firstName', 'lastName', 'middleName', 'email', 'username', 'phone', 'dateOfBirth',
   'gender', 'maritalStatus', 'hireDate', 'employeeId', 'departmentId',
   'positionId', 'employmentType', 'salary', 'salaryType', 'basicScale',
   'accommodationRate', 'medicalRate', 'transportRate', 'mobileInternet',
@@ -227,6 +227,27 @@ export const createEmployee = async (req: Request, res: Response, next: NextFunc
     
     if (existingEmail) {
       return next(new AppError('Email already exists', 400));
+    }
+
+    // Normalize and check username uniqueness
+    if (!employeeData.username) {
+      // Auto-generate from email prefix
+      const emailPrefix = employeeData.email.split('@')[0].toLowerCase().trim();
+      let candidate = emailPrefix;
+      let counter = 2;
+      while (await prisma.employee.findUnique({ where: { username: candidate } })) {
+        candidate = `${emailPrefix}${counter}`;
+        counter++;
+      }
+      employeeData.username = candidate;
+    } else {
+      employeeData.username = employeeData.username.toLowerCase().trim();
+      const existingUsername = await prisma.employee.findUnique({
+        where: { username: employeeData.username }
+      });
+      if (existingUsername) {
+        return next(new AppError('Username already exists', 400));
+      }
     }
 
     const employee = await prisma.employee.create({
@@ -311,12 +332,24 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
       }
     }
 
+    // Check if username is being changed and already exists
+    if (raw.username && raw.username !== employee.username) {
+      raw.username = raw.username.toLowerCase().trim();
+      const existingUsername = await prisma.employee.findUnique({
+        where: { username: raw.username }
+      });
+      if (existingUsername) {
+        return next(new AppError('Username already exists', 400));
+      }
+    }
+
     // Build update payload, hashing the password if it was changed.
     const data: any = {};
     if (raw.firstName !== undefined) data.firstName = raw.firstName;
     if (raw.lastName !== undefined) data.lastName = raw.lastName;
     if (raw.middleName !== undefined) data.middleName = raw.middleName;
     if (raw.email !== undefined) data.email = raw.email;
+    if (raw.username !== undefined) data.username = raw.username;
     if (raw.phone !== undefined) data.phone = raw.phone;
     if (raw.address !== undefined) data.address = raw.address;
     if (raw.city !== undefined) data.city = raw.city;

@@ -32,6 +32,7 @@ export const getRoles = async (req: Request, res: Response, next: NextFunction) 
         firstName: true,
         lastName: true,
         email: true,
+        username: true,
         role: true,
         department: { select: { name: true } }
       },

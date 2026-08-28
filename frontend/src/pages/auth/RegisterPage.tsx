@@ -18,6 +18,7 @@ const RegisterPage = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ const RegisterPage = () => {
     setError(null);
     
     try {
-      await register({ firstName, lastName, email, password });
+      await register({ firstName, lastName, email, username, password });
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -80,6 +81,19 @@ const RegisterPage = () => {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Choose a username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={loading}
               />

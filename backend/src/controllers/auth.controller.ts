@@ -26,14 +26,16 @@ interface JwtPayload {
  */
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { firstName, lastName, email, password, employeeId } = req.body;
+    const { firstName, lastName, email, username, password, employeeId } = req.body;
 
-    const existingUser = await prisma.employee.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
+    const existingEmail = await prisma.employee.findUnique({ where: { email } });
+    if (existingEmail) {
       return next(new AppError('User already exists with this email', 400));
+    }
+
+    const existingUsername = await prisma.employee.findUnique({ where: { username } });
+    if (existingUsername) {
+      return next(new AppError('Username already taken', 400));
     }
 
     const hashedPassword = await hash(password, 12);
@@ -64,6 +66,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         firstName,
         lastName,
         email,
+        username: username.toLowerCase().trim(),
         password: hashedPassword,
         employeeId: employeeId || `EMP${Date.now()}`,
         hireDate: new Date(),
@@ -104,6 +107,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
           firstName: employee.firstName,
           lastName: employee.lastName,
           email: employee.email,
+          username: employee.username,
           employeeId: employee.employeeId,
           role: employee.role
         }
@@ -115,30 +119,23 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 };
 
 /**
- * Login user
+ * Login user — authenticates by username
  */
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    // Support username (email prefix), full email, or employeeId
-    const employee = await prisma.employee.findFirst({
-      where: {
-        OR: [
-          { email },
-          { employeeId: email },
-          { email: { startsWith: `${email}@` } },
-        ]
-      }
+    const employee = await prisma.employee.findUnique({
+      where: { username: username.toLowerCase().trim() }
     });
 
     if (!employee || !employee.password) {
-      return next(new AppError('Invalid credentials', 401));
+      return next(new AppError('Invalid username or password', 401));
     }
 
     const isPasswordValid = await compare(password, employee.password);
     if (!isPasswordValid) {
-      return next(new AppError('Invalid credentials', 401));
+      return next(new AppError('Invalid username or password', 401));
     }
 
     const accessToken = sign(
@@ -170,6 +167,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           firstName: employee.firstName,
           lastName: employee.lastName,
           email: employee.email,
+          username: employee.username,
           employeeId: employee.employeeId,
           role: employee.role
         }
@@ -266,6 +264,7 @@ export const getProfile = async (req: Request, res: Response, next: NextFunction
         lastName: true,
         middleName: true,
         email: true,
+        username: true,
         phone: true,
         employeeId: true,
         dateOfBirth: true,
