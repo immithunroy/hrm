@@ -35,11 +35,6 @@ services:
       ZKT_DEVICE_USERNAME: ${ZKT_DEVICE_USERNAME:-}
       ZKT_DEVICE_PASSWD: ${ZKT_DEVICE_PASSWD:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://103.177.54.6:8060}
-      FRONTEND_URL: ${FRONTEND_URL:-http://103.177.54.6:8060}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://103.177.54.6:8060/api/auth/google/callback}
-      SESSION_SECRET: ${SESSION_SECRET:-change-this-session-secret}
     depends_on:
       db:
         condition: service_healthy

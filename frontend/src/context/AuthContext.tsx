@@ -8,7 +8,6 @@ interface AuthContextType {
   login: (credentials: LoginFormValues) => Promise<void>;
   register: (userData: RegisterFormValues) => Promise<void>;
   logout: () => void;
-  handleGoogleCallback: (token: string) => Promise<void>;
 }
 
 interface AuthResponse {
@@ -54,18 +53,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(res.data.employee);
   };
 
-  const handleGoogleCallback = useCallback(async (token: string) => {
-    localStorage.setItem('accessToken', token);
-    try {
-      const res = await api.get<{ success: boolean; data: User }>('/auth/me');
-      setUser(res.data);
-    } catch {
-      localStorage.removeItem('accessToken');
-      setUser(null);
-      throw new Error('Failed to load user profile after Google authentication.');
-    }
-  }, []);
-
   const logout = useCallback(() => {
     // Notify other tabs before clearing
     try {
@@ -84,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, handleGoogleCallback }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

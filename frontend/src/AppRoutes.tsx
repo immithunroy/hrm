@@ -5,7 +5,6 @@ import { useAuth } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import AuthCallbackPage from './pages/auth/AuthCallbackPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import EmployeesPage from './pages/employees/EmployeesPage';
 import { EmployeeDetailPage } from './pages/employees/EmployeeDetailPage';
@@ -37,7 +36,6 @@ const ProtectedRoutes = () => {
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
