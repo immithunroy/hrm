@@ -21,7 +21,8 @@ interface JwtPayload {
 }
 
 /**
- * Register a new user
+ * Register a new user (EMPLOYEE role only — used by mobile or self-service).
+ * For creating ADMIN/MANAGER/HR/FINANCE accounts, use POST /api/employees.
  */
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -57,6 +58,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       });
     }
 
+    // Self-registration always creates EMPLOYEE role only.
     const employee = await prisma.employee.create({
       data: {
         firstName,
@@ -67,6 +69,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         hireDate: new Date(),
         employmentType: 'FULL_TIME',
         status: 'ACTIVE',
+        role: 'EMPLOYEE',
         departmentId: department.id,
         positionId: position.id
       }

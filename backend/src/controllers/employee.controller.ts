@@ -180,12 +180,34 @@ export const getEmployeeById = async (req: Request, res: Response, next: NextFun
   }
 };
 
+// Whitelist of fields allowed when creating an employee via the API.
+const CREATE_ALLOWED_FIELDS = [
+  'firstName', 'lastName', 'middleName', 'email', 'phone', 'dateOfBirth',
+  'gender', 'maritalStatus', 'hireDate', 'employeeId', 'departmentId',
+  'positionId', 'employmentType', 'salary', 'salaryType', 'basicScale',
+  'accommodationRate', 'medicalRate', 'transportRate', 'mobileInternet',
+  'bankAccountNumber', 'bankName', 'emergencyContactName', 'emergencyContactPhone',
+  'address', 'city', 'state', 'zipCode', 'country', 'govtIdType', 'govtIdNumber',
+  'employmentEndDate', 'status', 'weeklyHoliday', 'attendanceExempt', 'payrollExempt',
+  'pin', 'password', 'role'
+];
+
+// Whitelist of fields allowed when updating an employee (excludes sensitive escalation fields for non-admins).
+const UPDATE_ALLOWED_FIELDS_ADMIN = [
+  ...CREATE_ALLOWED_FIELDS
+];
+
 /**
  * Create new employee
  */
 export const createEmployee = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const employeeData = req.body;
+    const raw = req.body;
+    // Only accept whitelisted fields — prevents mass assignment.
+    const employeeData: Record<string, any> = {};
+    for (const key of CREATE_ALLOWED_FIELDS) {
+      if (raw[key] !== undefined) employeeData[key] = raw[key];
+    }
 
     // Check if employeeId already exists
     if (employeeData.employeeId) {
@@ -209,7 +231,7 @@ export const createEmployee = async (req: Request, res: Response, next: NextFunc
 
     const employee = await prisma.employee.create({
       data: {
-        ...employeeData,
+        ...(employeeData as any),
         hireDate: employeeData.hireDate ? new Date(employeeData.hireDate) : new Date(),
         dateOfBirth: employeeData.dateOfBirth ? new Date(employeeData.dateOfBirth) : undefined,
         employmentEndDate: employeeData.employmentEndDate ? new Date(employeeData.employmentEndDate) : undefined,
@@ -235,7 +257,7 @@ export const createEmployee = async (req: Request, res: Response, next: NextFunc
 export const updateEmployee = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const raw = req.body;
 
     // Check if employee exists
     const employee = await prisma.employee.findUnique({
@@ -250,15 +272,27 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
     const isSelf = req.userId === id;
     if (isSelf && req.userRole === 'EMPLOYEE') {
       const SAFE_FIELDS = ['firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'weeklyHoliday', 'password'];
-      for (const key of Object.keys(updateData)) {
-        if (!SAFE_FIELDS.includes(key)) delete updateData[key];
+      const updateData: Record<string, any> = {};
+      for (const key of SAFE_FIELDS) {
+        if (raw[key] !== undefined) updateData[key] = raw[key];
+      }
+      Object.assign(raw, updateData);
+      // Remove keys not in SAFE_FIELDS
+      for (const key of Object.keys(raw)) {
+        if (!SAFE_FIELDS.includes(key)) delete raw[key];
+      }
+    } else if (req.userRole !== 'ADMIN') {
+      // HR/FINANCE/MANAGER: only allowed fields, cannot escalate roles
+      const RESTRICTED = ['role', 'payrollExempt', 'attendanceExempt'];
+      for (const key of RESTRICTED) {
+        delete raw[key];
       }
     }
 
     // Check if employeeId is being changed and already exists
-    if (updateData.employeeId && updateData.employeeId !== employee.employeeId) {
+    if (raw.employeeId && raw.employeeId !== employee.employeeId) {
       const existingEmployee = await prisma.employee.findUnique({
-        where: { employeeId: updateData.employeeId }
+        where: { employeeId: raw.employeeId }
       });
       
       if (existingEmployee) {
@@ -267,9 +301,9 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
     }
 
     // Check if email is being changed and already exists
-    if (updateData.email && updateData.email !== employee.email) {
+    if (raw.email && raw.email !== employee.email) {
       const existingEmail = await prisma.employee.findUnique({
-        where: { email: updateData.email }
+        where: { email: raw.email }
       });
       
       if (existingEmail) {
@@ -278,12 +312,47 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
     }
 
     // Build update payload, hashing the password if it was changed.
-    const data: any = { ...updateData };
-    if (updateData.hireDate) data.hireDate = new Date(updateData.hireDate);
-    if (updateData.dateOfBirth) data.dateOfBirth = new Date(updateData.dateOfBirth);
-    if (updateData.employmentEndDate) data.employmentEndDate = new Date(updateData.employmentEndDate);
-    if (updateData.password) data.password = await hash(String(updateData.password), 12);
-    else delete data.password;
+    const data: any = {};
+    if (raw.firstName !== undefined) data.firstName = raw.firstName;
+    if (raw.lastName !== undefined) data.lastName = raw.lastName;
+    if (raw.middleName !== undefined) data.middleName = raw.middleName;
+    if (raw.email !== undefined) data.email = raw.email;
+    if (raw.phone !== undefined) data.phone = raw.phone;
+    if (raw.address !== undefined) data.address = raw.address;
+    if (raw.city !== undefined) data.city = raw.city;
+    if (raw.state !== undefined) data.state = raw.state;
+    if (raw.zipCode !== undefined) data.zipCode = raw.zipCode;
+    if (raw.country !== undefined) data.country = raw.country;
+    if (raw.dateOfBirth !== undefined) data.dateOfBirth = raw.dateOfBirth ? new Date(raw.dateOfBirth) : null;
+    if (raw.gender !== undefined) data.gender = raw.gender;
+    if (raw.maritalStatus !== undefined) data.maritalStatus = raw.maritalStatus;
+    if (raw.hireDate !== undefined) data.hireDate = raw.hireDate ? new Date(raw.hireDate) : undefined;
+    if (raw.employeeId !== undefined) data.employeeId = raw.employeeId;
+    if (raw.departmentId !== undefined) data.departmentId = raw.departmentId;
+    if (raw.positionId !== undefined) data.positionId = raw.positionId;
+    if (raw.employmentType !== undefined) data.employmentType = raw.employmentType;
+    if (raw.salary !== undefined) data.salary = raw.salary;
+    if (raw.salaryType !== undefined) data.salaryType = raw.salaryType;
+    if (raw.basicScale !== undefined) data.basicScale = raw.basicScale;
+    if (raw.accommodationRate !== undefined) data.accommodationRate = raw.accommodationRate;
+    if (raw.medicalRate !== undefined) data.medicalRate = raw.medicalRate;
+    if (raw.transportRate !== undefined) data.transportRate = raw.transportRate;
+    if (raw.mobileInternet !== undefined) data.mobileInternet = raw.mobileInternet;
+    if (raw.bankAccountNumber !== undefined) data.bankAccountNumber = raw.bankAccountNumber;
+    if (raw.bankName !== undefined) data.bankName = raw.bankName;
+    if (raw.taxId !== undefined) data.taxId = raw.taxId;
+    if (raw.emergencyContactName !== undefined) data.emergencyContactName = raw.emergencyContactName;
+    if (raw.emergencyContactPhone !== undefined) data.emergencyContactPhone = raw.emergencyContactPhone;
+    if (raw.govtIdType !== undefined) data.govtIdType = raw.govtIdType;
+    if (raw.govtIdNumber !== undefined) data.govtIdNumber = raw.govtIdNumber;
+    if (raw.employmentEndDate !== undefined) data.employmentEndDate = raw.employmentEndDate ? new Date(raw.employmentEndDate) : null;
+    if (raw.status !== undefined) data.status = raw.status;
+    if (raw.weeklyHoliday !== undefined) data.weeklyHoliday = raw.weeklyHoliday;
+    if (raw.attendanceExempt !== undefined) data.attendanceExempt = raw.attendanceExempt;
+    if (raw.payrollExempt !== undefined) data.payrollExempt = raw.payrollExempt;
+    if (raw.pin !== undefined) data.pin = raw.pin;
+    if (raw.role !== undefined && req.userRole === 'ADMIN') data.role = raw.role;
+    if (raw.password) data.password = await hash(String(raw.password), 12);
 
     const updatedEmployee = await prisma.employee.update({
       where: { id },
@@ -353,6 +422,9 @@ export const deleteEmployee = async (req: Request, res: Response, next: NextFunc
     await prisma.$transaction([
       prisma.attendance.deleteMany({ where: { employeeId: id } }),
       prisma.payroll.deleteMany({ where: { employeeId: id } }),
+      prisma.loanInstallment.deleteMany({ where: { loan: { employeeId: id } } }),
+      prisma.loan.deleteMany({ where: { employeeId: id } }),
+      prisma.festivalBonus.deleteMany({ where: { employeeId: id } }),
       prisma.leaveBalance.deleteMany({ where: { employeeId: id } }),
       prisma.leaveRequest.deleteMany({ where: { employeeId: id } }),
       prisma.shiftAssignment.deleteMany({ where: { employeeId: id } }),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Button, 
@@ -92,9 +92,9 @@ const LoginPage = () => {
         <CardFooter className="pt-4 text-center text-sm">
           <p>
             Don't have an account?{' '}
-            <a href="/register" className="font-medium underline hover:text-primary">
+            <Link to="/register" className="font-medium underline hover:text-primary">
               Sign up
-            </a>
+            </Link>
           </p>
         </CardFooter>
       </Card>

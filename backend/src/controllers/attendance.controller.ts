@@ -9,6 +9,10 @@ import { dhakaDayStart } from '../services/holiday.service';
 
 const DHAKA_OFFSET_MS = 6 * 3600 * 1000;
 
+/** Build a Date representing midnight in Dhaka (UTC-6). */
+const dhakaMidnight = (y: number, m: number, d: number): Date =>
+  new Date(Date.UTC(y, m, d) - DHAKA_OFFSET_MS);
+
 // Normalize a date filter value to a UTC instant. Bare YYYY-MM-DD values are
 // interpreted as a Dhaka calendar day (start = 00:00 Dhaka, end = 23:59:59.999 Dhaka).
 const normalizeDateBound = (value: string | undefined, isEnd: boolean): Date | undefined => {
@@ -165,6 +169,7 @@ export const exportAttendance = async (req: Request, res: Response, next: NextFu
     const format = String(req.query.format || 'xlsx').toLowerCase();
     const where = buildAttendanceWhere(req.query);
 
+    const isEmployee = req.userRole === 'EMPLOYEE';
     const records = await prisma.attendance.findMany({
       where,
       include: {
@@ -175,7 +180,8 @@ export const exportAttendance = async (req: Request, res: Response, next: NextFu
             lastName: true,
             employeeId: true,
             department: { select: { name: true } },
-            salary: true
+            // EMPLOYEE role should not see salary info in exports.
+            ...(isEmployee ? {} : { salary: true })
           }
         }
       },
@@ -578,14 +584,17 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
     const employeeId = req.userId!;
     if (!employeeId) return next(new AppError('Unauthorized', 401));
 
-    // Get today's date range (Dhaka time)
+    // Get today's date in Dhaka time (YYYY-MM-DD)
     const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
+    const dhakaMs = now.getTime() + 6 * 3600 * 1000;
+    const todayStr = new Date(dhakaMs).toISOString().slice(0, 10);
 
     // Check if already checked in today
+    const todayStart = dhakaMidnight(
+      ...todayStr.split('-').map(Number) as [number, number, number]
+    );
+    const todayEnd = new Date(todayStart.getTime() + 86400000);
+
     const existing = await prisma.attendance.findFirst({
       where: {
         employeeId,
@@ -600,10 +609,9 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
       return next(new AppError('Already checked in today', 400));
     }
 
-    // Determine status based on shift (default 9 AM start)
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const status = (hour > 9 || (hour === 9 && minute > 0)) ? 'LATE' : 'PRESENT';
+    // Use computeManualAttendance for proper shift-aware computation.
+    const checkInISO = now.toISOString();
+    const summary = await computeManualAttendance(todayStr, checkInISO);
 
     let attendance;
     if (existing) {
@@ -612,9 +620,10 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
         where: { id: existing.id },
         data: {
           checkIn: now,
-          status,
+          status: summary.status,
+          lateMinutes: summary.lateMinutes,
           deviceId: 'MOBILE',
-          punches: [now.toISOString()]
+          punches: summary.punches.map((p: number) => new Date(p).toISOString())
         }
       });
     } else {
@@ -623,16 +632,16 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
         data: {
           employeeId,
           checkIn: now,
-          date: now,
-          status,
+          date: todayStart,
+          status: summary.status,
           workHours: 0,
           overtimeHours: 0,
           earlyOvertimeHours: 0,
-          lateMinutes: status === 'LATE' ? (hour - 9) * 60 + minute : 0,
+          lateMinutes: summary.lateMinutes,
           earlyDepartureMinutes: 0,
           breakMinutes: 0,
           errandCount: 0,
-          punches: [now.toISOString()],
+          punches: summary.punches.map((p: number) => new Date(p).toISOString()),
           autoCheckOut: false,
           deviceId: 'MOBILE'
         }
@@ -643,7 +652,7 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
       success: true,
       data: {
         attendance,
-        message: `Checked in at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+        message: `Checked in at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Dhaka' })}`
       }
     });
   } catch (error) {
@@ -659,12 +668,14 @@ export const mobileCheckOut = async (req: Request, res: Response, next: NextFunc
     const employeeId = req.userId!;
     if (!employeeId) return next(new AppError('Unauthorized', 401));
 
-    // Find today's attendance record
+    // Find today's attendance record (Dhaka time)
     const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
+    const dhakaMs = now.getTime() + 6 * 3600 * 1000;
+    const todayStr = new Date(dhakaMs).toISOString().slice(0, 10);
+    const todayStart = dhakaMidnight(
+      ...todayStr.split('-').map(Number) as [number, number, number]
+    );
+    const todayEnd = new Date(todayStart.getTime() + 86400000);
 
     const attendance = await prisma.attendance.findFirst({
       where: {
@@ -688,14 +699,10 @@ export const mobileCheckOut = async (req: Request, res: Response, next: NextFunc
       return next(new AppError('Cannot check out without checking in first', 400));
     }
 
-    // Calculate work hours
-    const checkInTime = new Date(attendance.checkIn).getTime();
-    const checkOutTime = now.getTime();
-    const workHoursMs = checkOutTime - checkInTime;
-    const workHours = Math.round((workHoursMs / (1000 * 60 * 60)) * 100) / 100;
-
-    // Calculate overtime (after 9 hours)
-    const overtimeHours = workHours > 9 ? Math.round((workHours - 9) * 100) / 100 : 0;
+    // Use computeManualAttendance for proper shift-aware computation.
+    const checkInISO = attendance.checkIn.toISOString();
+    const checkOutISO = now.toISOString();
+    const summary = await computeManualAttendance(todayStr, checkInISO, checkOutISO);
 
     // Update punches
     const punches = Array.isArray(attendance.punches) ? [...attendance.punches] : [];
@@ -705,9 +712,13 @@ export const mobileCheckOut = async (req: Request, res: Response, next: NextFunc
       where: { id: attendance.id },
       data: {
         checkOut: now,
-        workHours,
-        overtimeHours,
-        earlyDepartureMinutes: 0,
+        status: summary.status,
+        workHours: summary.workHours,
+        overtimeHours: summary.overtimeHours,
+        earlyOvertimeHours: summary.earlyOvertimeHours,
+        lateMinutes: summary.lateMinutes,
+        earlyDepartureMinutes: summary.earlyDepartureMinutes,
+        breakMinutes: summary.breakMinutes,
         punches
       }
     });
@@ -716,7 +727,7 @@ export const mobileCheckOut = async (req: Request, res: Response, next: NextFunc
       success: true,
       data: {
         attendance: updated,
-        message: `Checked out at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}. Work hours: ${workHours}`
+        message: `Checked out at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Dhaka' })}. Work hours: ${summary.workHours}`
       }
     });
   } catch (error) {

@@ -58,14 +58,19 @@ export const updateRole = async (req: Request, res: Response, next: NextFunction
       return res.status(400).json({ success: false, message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     }
 
-    // Prevent self-demotion
-    if (employeeId === req.userId && role !== 'ADMIN') {
-      return res.status(400).json({ success: false, message: 'Cannot change your own role from ADMIN' });
-    }
-
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    // Prevent self-role-change entirely — only another admin should change roles.
+    if (employeeId === req.userId) {
+      return res.status(400).json({ success: false, message: 'Cannot change your own role. Ask another admin to do it.' });
+    }
+
+    // Prevent non-admins from assigning ADMIN role
+    if (role === 'ADMIN' && req.userRole !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Only ADMIN can assign ADMIN role' });
     }
 
     const updated = await prisma.employee.update({

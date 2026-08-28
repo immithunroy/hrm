@@ -14,7 +14,7 @@ import {
   TableCell,
   TableHead
 } from '@/components/ui';
-import { Cpu, Wifi, WifiOff, RefreshCw, Trash2, Upload, Users, Info } from 'lucide-react';
+import { Cpu, Wifi, WifiOff, RefreshCw, Trash2, Upload, Users, Info, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../services/api';
 
 const DevicesPage = () => {
@@ -28,6 +28,7 @@ const DevicesPage = () => {
   const [syncAllUsers, setSyncAllUsers] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [usersLoading, setUsersLoading] = useState(false);
+  const [showPins, setShowPins] = useState(false);
 
   const fetchDevices = useCallback(async () => {
     setLoading(true);
@@ -281,7 +282,17 @@ const DevicesPage = () => {
                   <TableHead>UID</TableHead>
                   <TableHead>User ID</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>PIN</TableHead>
+                  <TableHead className="flex items-center gap-1">
+                    PIN
+                    <button
+                      type="button"
+                      onClick={() => setShowPins(p => !p)}
+                      className="text-muted-foreground hover:text-foreground"
+                      title={showPins ? 'Hide PINs' : 'Show PINs'}
+                    >
+                      {showPins ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                  </TableHead>
                   <TableHead>Linked Employee</TableHead>
                   <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
@@ -292,7 +303,7 @@ const DevicesPage = () => {
                     <TableCell>{u.uid}</TableCell>
                     <TableCell>{u.userId}</TableCell>
                     <TableCell>{u.name}</TableCell>
-                    <TableCell>{u.pin}</TableCell>
+                    <TableCell className="font-mono">{showPins ? u.pin : '••••'}</TableCell>
                     <TableCell>
                       {u.employee ? (
                         <span className="text-sm">{u.employee.firstName} {u.employee.lastName} ({u.employee.employeeId})</span>

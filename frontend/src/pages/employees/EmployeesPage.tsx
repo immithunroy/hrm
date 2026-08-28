@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
@@ -32,6 +32,8 @@ const EmployeesPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [search, setSearch] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [totalEmployees, setTotalEmployees] = useState<number>(0);
@@ -43,7 +45,7 @@ const EmployeesPage = () => {
         page: String(currentPage),
         limit: String(itemsPerPage)
       });
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       const res = await api.get<any>(`/employees?${params.toString()}`);
       setEmployees(res.data.employees || []);
       setTotalEmployees(res.data.pagination?.total || 0);
@@ -53,7 +55,17 @@ const EmployeesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, currentPage, itemsPerPage]);
+  }, [debouncedSearch, currentPage, itemsPerPage]);
+
+  // Debounce search input
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [search]);
 
   useEffect(() => {
     fetchEmployees();
@@ -77,7 +89,7 @@ const EmployeesPage = () => {
           <Input
             placeholder="Search employees..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full max-w-xs"
           />
           <Button onClick={() => navigate('/employees/new')}>

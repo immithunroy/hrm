@@ -1,6 +1,8 @@
 node_modules
-dist
-.env
-.env.*
 .git
-*.log
+.gitignore
+dist
+*.md
+.env*
+.vscode
+.idea
