@@ -35,6 +35,10 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSaved, setPwSaved] = useState(false);
+  const [pwError, setPwError] = useState('');
 
   useEffect(() => {
     api.get<{ success: boolean; data: ProfileData }>('/auth/me')
@@ -69,6 +73,40 @@ const ProfilePage = () => {
       setError(err.message || 'Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPwForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setPwSaved(false);
+    setPwError('');
+  };
+
+  const handlePwSave = async () => {
+    setPwSaving(true);
+    setPwError('');
+    setPwSaved(false);
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('New passwords do not match');
+      setPwSaving(false);
+      return;
+    }
+    if (pwForm.newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters');
+      setPwSaving(false);
+      return;
+    }
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: pwForm.currentPassword,
+        newPassword: pwForm.newPassword
+      });
+      setPwSaved(true);
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      setPwError(err.message || 'Failed to change password');
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -157,6 +195,51 @@ const ProfilePage = () => {
           </CardFooter>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Current Password</Label>
+            <Input
+              id="currentPassword"
+              name="currentPassword"
+              type="password"
+              value={pwForm.currentPassword}
+              onChange={handlePwChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">New Password</Label>
+            <Input
+              id="newPassword"
+              name="newPassword"
+              type="password"
+              value={pwForm.newPassword}
+              onChange={handlePwChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm New Password</Label>
+            <Input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              value={pwForm.confirmPassword}
+              onChange={handlePwChange}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="justify-end gap-3">
+          {pwError && <span className="text-sm text-red-600 mr-auto">{pwError}</span>}
+          {pwSaved && <span className="text-sm text-green-600 mr-auto">Password changed</span>}
+          <Button onClick={handlePwSave} disabled={pwSaving}>
+            {pwSaving ? 'Changing...' : 'Change Password'}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

@@ -250,6 +250,38 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
+ * Change current user's password
+ */
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!employee || !employee.password) {
+      return next(new AppError('Employee not found', 404));
+    }
+
+    const isMatch = await compare(currentPassword, employee.password);
+    if (!isMatch) {
+      return next(new AppError('Current password is incorrect', 401));
+    }
+
+    await prisma.employee.update({
+      where: { id: employeeId },
+      data: { password: await hash(newPassword, 12) }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get current user profile
  */
 export const getProfile = async (req: Request, res: Response, next: NextFunction) => {
