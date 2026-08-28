@@ -46,8 +46,8 @@ export const rateLimit = (windowMs: number, max: number) => {
 
 /**
  * Stricter rate limiter for auth endpoints (login/register).
- * 10 attempts per 15 minutes per IP.
+ * 20 attempts per 15 minutes per IP.
  */
-export const authRateLimit = rateLimit(15 * 60 * 1000, 10);
+export const authRateLimit = rateLimit(15 * 60 * 1000, 20);
 
 export default { rateLimit, authRateLimit };
