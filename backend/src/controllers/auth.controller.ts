@@ -118,8 +118,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = req.body;
 
-    const employee = await prisma.employee.findUnique({
-      where: { email }
+    const employee = await prisma.employee.findFirst({
+      where: {
+        OR: [
+          { email },
+          { employeeId: email },
+        ]
+      }
     });
 
     if (!employee || !employee.password) {
