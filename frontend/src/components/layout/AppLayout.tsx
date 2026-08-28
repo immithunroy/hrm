@@ -19,7 +19,9 @@ import {
   X,
   Fingerprint,
   Landmark,
-  Gift
+  Gift,
+  CheckSquare,
+  Megaphone
 } from 'lucide-react';
 
 const navigation = [
@@ -33,6 +35,8 @@ const navigation = [
   { name: 'Loans', to: '/loans', icon: Landmark },
   { name: 'Festival Bonus', to: '/festival-bonus', icon: Gift },
   { name: 'Holidays', to: '/holidays', icon: CalendarCheck },
+  { name: 'Tasks', to: '/tasks', icon: CheckSquare },
+  { name: 'Announcements', to: '/announcements', icon: Megaphone },
   { name: 'Devices', to: '/devices', icon: Cpu },
   { name: 'Profile', to: '/profile', icon: UserCircle },
   { name: 'Settings', to: '/settings', icon: Settings }

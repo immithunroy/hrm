@@ -19,6 +19,8 @@ import { ProfilePage } from './pages/profile/ProfilePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import LoansPage from './pages/loans/LoansPage';
 import FestivalBonusPage from './pages/festival-bonus/FestivalBonusPage';
+import TasksPage from './pages/tasks/TasksPage';
+import AnnouncementsPage from './pages/announcements/AnnouncementsPage';
 
 const ProtectedRoutes = () => {
   const { user, isLoading } = useAuth();
@@ -56,6 +58,8 @@ const AppRoutes = () => {
           <Route path="/festival-bonus" element={<FestivalBonusPage />} />
           <Route path="/devices" element={<DevicesPage />} />
           <Route path="/holidays" element={<HolidaysPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
