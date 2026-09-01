@@ -69,7 +69,12 @@ export const getAttendanceRecords = async (req: Request, res: Response, next: Ne
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     const take = parseInt(limit as string);
 
-    const where = buildAttendanceWhere(req.query);
+    const query = { ...req.query };
+    // EMPLOYEE role can only see their own attendance
+    if (req.userRole === 'EMPLOYEE') {
+      query.employeeId = req.userId!;
+    }
+    const where = buildAttendanceWhere(query);
 
     const startBound = normalizeDateBound(req.query.startDate as string, false);
     const endBound = normalizeDateBound(req.query.endDate as string, true);
@@ -95,7 +100,7 @@ export const getAttendanceRecords = async (req: Request, res: Response, next: Ne
       const merged = await mergeAttendanceWithCalendar(allRecords, {
         start: startBound,
         end: endBound,
-        employeeId: req.query.employeeId as string | undefined
+      employeeId: (query.employeeId as string) || undefined
       });
 
       merged.sort((a, b) => {
@@ -167,7 +172,12 @@ export const getAttendanceRecords = async (req: Request, res: Response, next: Ne
 export const exportAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const format = String(req.query.format || 'xlsx').toLowerCase();
-    const where = buildAttendanceWhere(req.query);
+    const query = { ...req.query };
+    // EMPLOYEE role can only export their own attendance
+    if (req.userRole === 'EMPLOYEE') {
+      query.employeeId = req.userId!;
+    }
+    const where = buildAttendanceWhere(query);
 
     const isEmployee = req.userRole === 'EMPLOYEE';
     const records = await prisma.attendance.findMany({
@@ -290,6 +300,11 @@ export const getAttendanceById = async (req: Request, res: Response, next: NextF
 
     if (!attendance) {
       return next(new AppError('Attendance record not found', 404));
+    }
+
+    // EMPLOYEE role can only view their own attendance record
+    if (req.userRole === 'EMPLOYEE' && attendance.employeeId !== req.userId) {
+      return next(new AppError('Access denied', 403));
     }
 
     res.status(200).json({
@@ -443,13 +458,19 @@ export const getTodayAttendance = async (req: Request, res: Response, next: Next
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const whereCondition: any = {
+      checkIn: {
+        gte: today,
+        lt: tomorrow
+      }
+    };
+    // EMPLOYEE role can only see their own attendance
+    if (req.userRole === 'EMPLOYEE') {
+      whereCondition.employeeId = req.userId!;
+    }
+
     const attendanceRecords = await prisma.attendance.findMany({
-      where: {
-        checkIn: {
-          gte: today,
-          lt: tomorrow
-        }
-      },
+      where: whereCondition,
       include: {
         employee: {
           select: {
@@ -510,7 +531,11 @@ export const getAttendanceStats = async (req: Request, res: Response, next: Next
     if (startDate) dateFilter.gte = new Date(startDate as string);
     if (endDate) dateFilter.lte = new Date(endDate as string);
     
-    const where = startDate || endDate ? { date: dateFilter } : {};
+    const where: any = startDate || endDate ? { date: dateFilter } : {};
+    // EMPLOYEE role can only see their own attendance stats
+    if (req.userRole === 'EMPLOYEE') {
+      where.employeeId = req.userId!;
+    }
 
     const attendanceRecords = await prisma.attendance.findMany({
       where,
