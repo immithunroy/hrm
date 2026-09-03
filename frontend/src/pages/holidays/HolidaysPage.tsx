@@ -1,3 +1,19 @@
+/**
+ * HolidaysPage - Official holiday management page.
+ *
+ * Features:
+ * - Holiday listing for a selected month with date and name
+ * - Add individual holiday with date picker and name
+ * - Bulk upload holidays via textarea (format: YYYY-MM-DD, Name)
+ * - Sync Bangladesh government holidays from external source
+ * - Delete individual holidays
+ * - Month selector for navigation between periods
+ *
+ * State management:
+ * - Bulk upload with line-by-line validation before API call
+ * - Sync message display for operation feedback
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

@@ -1,3 +1,9 @@
+/**
+ * Payroll validation schemas
+ * - payrollSchema: payroll record with salary, deductions, tax, and payment details
+ * - updatePayrollSchema: partial update; requires payroll ID
+ */
+
 import { z } from 'zod';
 
 export const payrollSchema = z.object({
@@ -5,6 +11,7 @@ export const payrollSchema = z.object({
   payPeriodStart: z.string().datetime(),
   payPeriodEnd: z.string().datetime(),
   basicSalary: z.number().min(0, 'Basic salary must be positive'),
+  // Financial fields default to 0 if omitted
   overtimePay: z.number().min(0, 'Overtime pay must be positive').optional().default(0),
   bonus: z.number().min(0, 'Bonus must be positive').optional().default(0),
   deductions: z.number().min(0, 'Deductions must be positive').optional().default(0),
@@ -17,6 +24,7 @@ export const payrollSchema = z.object({
   notes: z.string().optional()
 });
 
+// Extend partial schema with required ID for updates
 export const updatePayrollSchema = payrollSchema.partial().extend({
   id: z.string().min(1, 'Payroll ID is required')
 });

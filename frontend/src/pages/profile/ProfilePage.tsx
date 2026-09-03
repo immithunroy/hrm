@@ -1,3 +1,19 @@
+/**
+ * ProfilePage - Current user's personal profile management page.
+ *
+ * Features:
+ * - Profile display with initials avatar, name, role, department, position
+ * - Edit personal information (first name, last name, phone)
+ * - Email is read-only (displayed but not editable)
+ * - Change password with current password verification
+ * - Password validation: minimum 8 characters, confirmation match
+ * - Success/error feedback for both profile update and password change
+ *
+ * State management:
+ * - Profile data fetched from /auth/me on mount
+ * - Separate form states for profile info and password change
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';

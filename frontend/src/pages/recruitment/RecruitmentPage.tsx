@@ -1,3 +1,21 @@
+/**
+ * RecruitmentPage - Job posting and applicant management page.
+ *
+ * Features:
+ * - Job posting CRUD (create, read, update, delete) with modal forms
+ * - Applicant management per job posting (add, edit, delete, status update)
+ * - Education entries with dynamic add/remove rows
+ * - CV upload (PDF/JPG) for applicants
+ * - Applicant status tracking (NEW, REVIEWED, INTERVIEWED, OFFERED, HIRED, REJECTED)
+ * - Summary stats: Open, Total, On Hold, Closed positions
+ * - Department and position selection from metadata
+ *
+ * Complex state:
+ * - Nested modals: job posting modal, applicants list modal, applicant form modal
+ * - Education array with immutable update pattern
+ * - CV file upload with base64 encoding via FileReader
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

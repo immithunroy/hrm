@@ -1,8 +1,15 @@
+/**
+ * Shift validation schemas
+ * - shiftSchema: work shift definition with time range and break duration
+ * - shiftAssignmentSchema: assigns a shift to an employee on a specific date
+ */
+
 import { z } from 'zod';
 
 export const shiftSchema = z.object({
   name: z.string().min(1, 'Shift name is required'),
   description: z.string().optional(),
+  // Time validated as 24-hour HH:mm format (e.g., "08:30", "23:45")
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Start time must be in HH:mm format'),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'End time must be in HH:mm format'),
   breakTime: z.number().int().min(0, 'Break time must be non-negative').optional().default(0),

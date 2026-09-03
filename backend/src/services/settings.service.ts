@@ -1,3 +1,17 @@
+/**
+ * Payroll Settings Service
+ *
+ * Reads and writes company-wide payroll configuration stored in the
+ * SystemSetting table (key/value pairs). All payroll calculation parameters
+ * (OT rate, tax rate, working days, etc.) flow through this service.
+ *
+ * - getPayrollSettings – loads all settings with defaults, converting raw
+ *   rate values to effective multipliers via toMultiplier()
+ * - updatePayrollSettings – upserts only the fields that are provided
+ *
+ * RateMode (DECIMAL vs PERCENT) lets admins enter "1.5" or "150"; the
+ * effective multiplier is always a decimal (1.5) regardless.
+ */
 import { prisma } from '../config/database';
 
 export type RateMode = 'DECIMAL' | 'PERCENT';
@@ -50,6 +64,8 @@ const KEYS = {
   earlyOvertimeMode: 'payroll.earlyOvertimeMode'
 };
 
+// Load all payroll settings from SystemSetting table, apply defaults for
+// any missing keys, and convert raw rate values to effective multipliers.
 const toNumber = (value: any, fallback: number): number => {
   const n = parseFloat(value);
   return Number.isFinite(n) ? n : fallback;
@@ -73,6 +89,8 @@ const toMultiplier = (raw: number, mode: RateMode): number => {
   return raw;
 };
 
+// Load all payroll settings from SystemSetting table, apply defaults for
+// any missing keys, and convert raw rate values to effective multipliers.
 export const getPayrollSettings = async (): Promise<PayrollSettings> => {
   try {
     const rows = await prisma.systemSetting.findMany();
@@ -108,6 +126,9 @@ export const getPayrollSettings = async (): Promise<PayrollSettings> => {
   }
 };
 
+// Upsert only the settings that were explicitly provided in `partial`.
+// Converts each setting to its database key/value pair and upserts,
+// then returns the fully resolved settings object.
 export const updatePayrollSettings = async (
   partial: Partial<PayrollSettings>
 ): Promise<PayrollSettings> => {

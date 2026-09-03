@@ -1,3 +1,11 @@
+/**
+ * Device Controller
+ * -----------------
+ * Manages biometric / attendance devices (ZKTeco): CRUD, connection testing,
+ * manual attendance sync, device log management, user push to device,
+ * fingerprint enrollment, and device user deletion. All device communication
+ * is delegated to the zktService layer.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -234,7 +242,7 @@ export const testDeviceConnection = async (req: Request, res: Response, next: Ne
       return next(new AppError('Device not found', 404));
     }
 
-    // Test connection using ZKT service
+    // PING the device over TCP; update isActive and lastSeen on success
     const isConnected = await testConnection(
       device.ipAddress,
       device.port,
@@ -332,6 +340,8 @@ export const getDeviceLogs = async (req: Request, res: Response, next: NextFunct
  */
 export const syncDeviceAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Fire-and-forget: the sync runs in the background so the request
+    // returns immediately with HTTP 202 Accepted.
     syncAttendanceNow()
       .then((result) => {
         console.log(`Manual sync complete: ${result.imported} new of ${result.total}`);

@@ -1,3 +1,21 @@
+/**
+ * AttendancePage - Daily attendance tracking and management page.
+ *
+ * Features:
+ * - Attendance records list with employee filter and date range selection
+ * - View modes: Today, This Week, This Month, Custom date range
+ * - Manual attendance entry modal (add/edit) with Dhaka timezone support
+ * - Sync attendance from ZKT biometric device
+ * - Export attendance to Excel (xlsx) or PDF
+ * - Summary stats: Present, Late, Early Departure, Total Records
+ * - Auto-generated (synthetic) records shown with "auto" label
+ *
+ * Complex state:
+ * - Dhaka timezone (UTC+6) handling for all date/time conversions
+ * - Wall-clock to UTC ISO conversion for attendance punches
+ * - View mode switching with automatic range calculation
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import {

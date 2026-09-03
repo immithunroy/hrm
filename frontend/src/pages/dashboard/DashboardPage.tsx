@@ -1,3 +1,20 @@
+/**
+ * DashboardPage - Main organization overview dashboard.
+ *
+ * Features:
+ * - Employee count overview (total, active, present, absent)
+ * - Today's attendance summary with holiday/weekly-off detection
+ * - Attendance trend chart (last 30 days) via Recharts AreaChart
+ * - Status distribution pie chart (present/late/absent/leave)
+ * - Monthly attendance calendar with color-coded days
+ * - Department-wise employee vs present bar chart
+ * - Overtime, leave, holidays, and open positions metrics
+ * - Recent attendance table for today
+ * - Upcoming holidays badges
+ *
+ * Data is fetched from /api/dashboard endpoint.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

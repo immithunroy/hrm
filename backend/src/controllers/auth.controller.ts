@@ -1,3 +1,11 @@
+/**
+ * Auth Controller
+ * ---------------
+ * Handles user authentication: registration, login, logout, JWT refresh
+ * token management, password changes, and profile retrieval. All endpoints
+ * issue short-lived access tokens plus long-lived refresh tokens stored in
+ * httpOnly cookies.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { compare, hash } from 'bcryptjs';
 import { sign, verify, type SignOptions } from 'jsonwebtoken';
@@ -28,6 +36,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { firstName, lastName, email, username, password, employeeId } = req.body;
 
+    // Reject duplicate email and username before hashing anything
     const existingEmail = await prisma.employee.findUnique({ where: { email } });
     if (existingEmail) {
       return next(new AppError('User already exists with this email', 400));
@@ -60,7 +69,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       });
     }
 
-    // Self-registration always creates EMPLOYEE role only.
+    // Self-registration always creates EMPLOYEE role only — no privilege escalation
     const employee = await prisma.employee.create({
       data: {
         firstName,
@@ -90,6 +99,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       { expiresIn: JWT_REFRESH_EXPIRES_IN }
     );
 
+    // Set refresh token as httpOnly cookie — secure flag only in production
     const isSecure = req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production';
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -125,10 +135,12 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { username, password } = req.body;
 
+    // Normalize username and look up the employee record
     const employee = await prisma.employee.findUnique({
       where: { username: username.toLowerCase().trim() }
     });
 
+    // Use a generic message so attackers cannot enumerate valid usernames
     if (!employee || !employee.password) {
       return next(new AppError('Invalid username or password', 401));
     }
@@ -218,6 +230,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       return next(new AppError('Refresh token has been revoked', 401));
     }
 
+    // Verify the token and ensure the employee still exists
     try {
       const decoded = verify(token, JWT_REFRESH_SECRET) as JwtPayload;
       

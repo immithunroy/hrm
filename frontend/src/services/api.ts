@@ -1,12 +1,28 @@
+/**
+ * HTTP client singleton for communicating with the HRM backend API.
+ *
+ * Features:
+ * - Automatically attaches the JWT from localStorage to every request.
+ * - Centralized 401 handling: clears the token, broadcasts a logout event
+ *   to other tabs, and hard-redirects to the login page.
+ * - Typed GET/POST/PUT/PATCH/DELETE helpers that return parsed JSON.
+ * - download() helper that streams a file blob and triggers a browser download.
+ * - fileUrl() helper to build absolute URLs for uploaded files.
+ *
+ * The base URL is read from VITE_API_URL env var, falling back to localhost:5000.
+ */
+
 import { User } from '../types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 class ApiService {
+  /** Read the persisted JWT from localStorage. */
   private getToken(): string | null {
     return localStorage.getItem('accessToken');
   }
 
+  /** Build request headers with JSON content type and optional Bearer token. */
   private getHeaders(): HeadersInit {
     const token = this.getToken();
     const headers: HeadersInit = {
@@ -20,11 +36,17 @@ class ApiService {
     return headers;
   }
 
+  /**
+   * Unified response handler for all API methods.
+   * - On 401: clears session, notifies other tabs, and redirects to /login.
+   * - On other errors: attempts to parse a message from the response body.
+   * - On success: returns the parsed JSON payload.
+   */
   private async handleResponse<T>(response: Response): Promise<T> {
     if (response.status === 401) {
       // Token expired or invalid — clear and redirect to login
       localStorage.removeItem('accessToken');
-      // Notify other tabs
+      // Notify other tabs via BroadcastChannel
       try {
         const bc = new BroadcastChannel('hrm-auth');
         bc.postMessage({ type: 'auth:logout' });
@@ -90,10 +112,16 @@ class ApiService {
     return this.handleResponse<T>(response);
   }
 
+  /** Build an absolute URL for a file stored in the uploads directory. */
   fileUrl(path?: string | null): string {
     return path ? `${API_BASE_URL}/uploads/${path}` : '';
   }
 
+  /**
+   * Download a file from the API and trigger a browser download.
+   * Parses the filename from the Content-Disposition header, falling back
+   * to the provided fallbackName.
+   */
   async download(endpoint: string, fallbackName: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
@@ -122,6 +150,7 @@ class ApiService {
       throw new Error(msg);
     }
 
+    // Convert response to blob and trigger a download via a temporary anchor element
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';
     const match = disposition.match(/filename="?([^";]+)"?/);
@@ -137,4 +166,5 @@ class ApiService {
   }
 }
 
+/** Singleton instance used throughout the application. */
 export const api = new ApiService();

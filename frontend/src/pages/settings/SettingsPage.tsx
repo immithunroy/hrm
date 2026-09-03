@@ -1,3 +1,22 @@
+/**
+ * SettingsPage - System configuration and role management page.
+ *
+ * Features:
+ * - Payroll rules configuration (overtime rates, tax rate, working days/hours)
+ * - Overtime rate input with Decimal/Percent mode toggle
+ * - Holiday overtime rate with separate mode toggle
+ * - Default weekly holiday selection (overridable per employee)
+ * - Errand deduction mode (skip or deduct from regular OT)
+ * - Early attendance OT inclusion/exclusion setting
+ * - Currency selection (BDT/USD)
+ * - Role management: assign ADMIN, HR, MANAGER, FINANCE, EMPLOYEE roles
+ * - Inline role editing with instant save per employee
+ *
+ * State management:
+ * - Dual rate mode (DECIMAL/PERCENT) with effective multiplier calculation
+ * - Role employees list with optimistic UI update on role change
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

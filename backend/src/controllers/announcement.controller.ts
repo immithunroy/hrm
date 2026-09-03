@@ -1,3 +1,10 @@
+/**
+ * Announcement Controller
+ * -----------------------
+ * Manages company-wide announcements. Only active, non-expired announcements
+ * are returned to the mobile app. Admins/HR can create, update, and delete
+ * announcements with priority levels and optional expiry dates.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -13,7 +20,7 @@ export const getAnnouncements = async (req: Request, res: Response, next: NextFu
 
     const where: any = { isActive: true };
 
-    // Filter out expired announcements
+    // Include announcements that have no expiry or haven't expired yet
     where.OR = [
       { expiresAt: null },
       { expiresAt: { gte: new Date() } }

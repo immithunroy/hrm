@@ -1,3 +1,18 @@
+/**
+ * Export / Report Generation Service
+ *
+ * Builds Excel workbooks and PDF documents for attendance reports and
+ * payslips. Key exports:
+ *
+ * - buildAttendanceWorkbook – multi-employee attendance sheet (Excel)
+ * - buildAttendancePdf – multi-employee attendance report (PDF)
+ * - buildPayslipWorkbook – dual-copy payslip + attendance sheet (Excel)
+ * - buildPayslipPdf – dual-copy payslip + attendance report (PDF)
+ * - getLeaveSummary – casual / medical leave balance for an employee+year
+ *
+ * Formatting helpers (fmtDhaka, fmtHM, etc.) convert UTC timestamps to
+ * Asia/Dhaka display strings and decimal hours to "Xh Ym" format.
+ */
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../config/database';
@@ -166,6 +181,8 @@ const ATTENDANCE_HEADERS = [
   'Status'
 ];
 
+// Group attendance rows by employee, preserving insertion order.
+// Returns an array sorted by employeeId for consistent report ordering.
 const groupByEmployee = (rows: AttendanceExportRow[]) => {
   const groups: { employee: AttendanceExportRow['employee'] | null; rows: AttendanceExportRow[] }[] = [];
   const index = new Map<string, number>();
@@ -182,6 +199,8 @@ const groupByEmployee = (rows: AttendanceExportRow[]) => {
   return groups.sort((a, b) => (a.employee?.employeeId || '').localeCompare(b.employee?.employeeId || ''));
 };
 
+// Compute per-employee summary stats from their attendance rows:
+// lateDays, totalLateMinutes, totalErrandMinutes, onTimeDays.
 const employeeSummary = (rows: AttendanceExportRow[]) => {
   let lateDays = 0;
   let totalLateMinutes = 0;
@@ -196,6 +215,9 @@ const employeeSummary = (rows: AttendanceExportRow[]) => {
   return { lateDays, totalLateMinutes, totalErrandMinutes, onTimeDays };
 };
 
+// Build an Excel workbook containing per-employee attendance tables.
+// Each employee block: header info → summary stats → optional payment rates →
+// optional leave table → daily attendance rows → totals row.
 export const buildAttendanceWorkbook = async (
   rows: AttendanceExportRow[],
   title: string,
@@ -352,6 +374,10 @@ export const buildAttendanceWorkbook = async (
   return workbook.xlsx.writeBuffer();
 };
 
+// Build a PDF attendance report with per-employee blocks.
+// Uses weighted column widths to fit 10 columns on A4 portrait.
+// Employee blocks include summary stats, optional payment rates, leave
+// table, and daily attendance rows with a totals row.
 export const buildAttendancePdf = (
   rows: AttendanceExportRow[],
   title: string,
@@ -491,6 +517,9 @@ export const buildAttendancePdf = (
   });
 };
 
+// Draw a simple table on a PDF document. Handles page breaks automatically.
+// headerRows (0-indexed) are rendered with the dark header style; all other
+// rows use alternating white/light-blue backgrounds.
 const drawTable = (doc: PDFKit.PDFDocument, rows: any[][], widths: number[], headerRows?: number[]) => {
   const startX = doc.page.margins.left;
   let y = doc.y;
@@ -588,6 +617,11 @@ const currencySym = (currency?: string): string => {
   return currency && currency !== 'BDT' ? `${currency} ` : '৳ ';
 };
 
+// Build a dual-copy payslip Excel workbook.
+// Sheet 1 ("Pay Slip"): Employee Copy + Office Copy on the same page,
+//   separated by a dashed line. Each copy includes header info,
+//   earnings/deductions table, leave summary, and signature lines.
+// Sheet 2 ("Attendance Report"): full monthly attendance for the employee.
 export const buildPayslipWorkbook = async (data: PayslipData): Promise<ExcelJS.Buffer> => {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'HRM & Payroll';
@@ -933,6 +967,11 @@ export const buildPayslipWorkbook = async (data: PayslipData): Promise<ExcelJS.B
   return wb.xlsx.writeBuffer();
 };
 
+// Build a dual-copy payslip PDF.
+// Page 1: Employee Copy (top half) + Office Copy (bottom half), separated
+//   by a dashed line. Each copy has earnings/deductions, leave summary,
+//   and signature lines.
+// Page 2: Full attendance report for the month.
 export const buildPayslipPdf = (data: PayslipData): Promise<Buffer> => {
   return new Promise((resolve) => {
     const doc = new PDFDocument({ size: 'A4', layout: 'portrait', bufferPages: true, margins: { top: 28, left: 28, right: 28, bottom: 28 } });

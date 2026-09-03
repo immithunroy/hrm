@@ -1,3 +1,14 @@
+/**
+ * LoginPage - User authentication page for the HRM system.
+ *
+ * Features:
+ * - Username/password login form with validation
+ * - Session expiration detection via URL search params (e.g. ?error=session_expired)
+ * - Redirects to /dashboard on successful authentication
+ * - Loading and error state management
+ * - Link to registration page for new users
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

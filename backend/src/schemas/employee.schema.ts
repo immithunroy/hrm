@@ -1,3 +1,9 @@
+/**
+ * Employee validation schemas
+ * - employeeSchema: full employee creation with all personal, employment, and payroll fields
+ * - updateEmployeeSchema: partial update of any employee fields
+ */
+
 import { z } from 'zod';
 
 export const employeeSchema = z.object({
@@ -5,6 +11,7 @@ export const employeeSchema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   middleName: z.string().optional(),
   email: z.string().email('Invalid email format'),
+  // Alphanumeric with dots, hyphens, underscores only
   username: z.string().min(1, 'Username is required').regex(/^[a-zA-Z0-9._-]+$/, 'Username must contain only letters, numbers, dots, hyphens, or underscores'),
   phone: z.string().optional(),
   dateOfBirth: z.string().optional(),
@@ -18,6 +25,7 @@ export const employeeSchema = z.object({
   salary: z.number().min(0, 'Salary must be positive').optional(),
   salaryType: z.enum(['GROSS', 'SCALED']).optional(),
   basicScale: z.number().min(0).optional(),
+  // Percentage-based allowances (0-100)
   accommodationRate: z.number().min(0).max(100).optional(),
   medicalRate: z.number().min(0).max(100).optional(),
   transportRate: z.number().min(0).max(100).optional(),
@@ -31,6 +39,7 @@ export const employeeSchema = z.object({
   state: z.string().optional(),
   zipCode: z.string().optional(),
   country: z.string().optional(),
+  // Nullable because user may not have provided ID yet
   govtIdType: z.enum(['NID', 'DRIVING_LICENSE', 'PASSPORT']).nullable().optional(),
   govtIdNumber: z.string().optional(),
   profileImageUrl: z.string().optional(),

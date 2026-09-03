@@ -1,3 +1,11 @@
+/**
+ * Attendance Controller
+ * ---------------------
+ * Manages employee attendance records: CRUD for manual entries, export to
+ * XLSX/PDF, today's overview, statistics, and mobile check-in/check-out.
+ * Dates are handled in the Asia/Dhaka timezone (UTC-6) so calendar days
+ * align with the local business day (midnight to 23:59:59.999 Dhaka time).
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -26,7 +34,10 @@ const normalizeDateBound = (value: string | undefined, isEnd: boolean): Date | u
   return new Date(s);
 };
 
-// Shared attendance where-clause builder (list + export).
+/**
+ * Shared where-clause builder for attendance queries (list + export).
+ * Handles employeeId, date range, status, and device filters.
+ */
 const buildAttendanceWhere = (query: any) => {
   const {
     employeeId,
@@ -79,8 +90,9 @@ export const getAttendanceRecords = async (req: Request, res: Response, next: Ne
     const startBound = normalizeDateBound(req.query.startDate as string, false);
     const endBound = normalizeDateBound(req.query.endDate as string, true);
 
-    // When a date range is present we merge in real + synthetic (HOLIDAY/LEAVE/
-    // WEEKEND) rows and paginate in memory. Without a range we paginate in SQL.
+    // When a date range is present, merge real punch records with synthetic
+    // HOLIDAY/LEAVE/WEEKEND rows so the calendar is complete, then paginate in
+    // memory. Without a range, paginate in SQL for performance.
     if (startBound && endBound) {
       const allRecords = await prisma.attendance.findMany({
         where,
@@ -337,7 +349,7 @@ export const createAttendanceRecord = async (req: Request, res: Response, next: 
     }
 
     // Status-only records (LEAVE / ABSENT / HOLIDAY / WEEKEND / HALF) have no
-    // punches and are written directly; otherwise compute the daily summary.
+    // punch times and are written directly; otherwise compute the full summary.
     if (status && !checkIn && !checkOut) {
       const attendance = await prisma.attendance.create({
         data: {
@@ -391,7 +403,7 @@ export const updateAttendanceRecord = async (req: Request, res: Response, next: 
     const attendance = await prisma.attendance.findUnique({ where: { id } });
     if (!attendance) return next(new AppError('Attendance record not found', 404));
 
-    // Recompute when a date or in/out times are provided.
+    // Recompute the daily summary whenever any punch-related field changes.
     const hasPunchChange =
       updateData.date || updateData.checkIn || updateData.checkOut || updateData.breakMinutes != null;
     let summaryData: any = {};
@@ -609,7 +621,7 @@ export const mobileCheckIn = async (req: Request, res: Response, next: NextFunct
     const employeeId = req.userId!;
     if (!employeeId) return next(new AppError('Unauthorized', 401));
 
-    // Get today's date in Dhaka time (YYYY-MM-DD)
+    // Convert UTC now to a Dhaka calendar day string (YYYY-MM-DD)
     const now = new Date();
     const dhakaMs = now.getTime() + 6 * 3600 * 1000;
     const todayStr = new Date(dhakaMs).toISOString().slice(0, 10);

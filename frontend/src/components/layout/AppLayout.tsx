@@ -1,3 +1,14 @@
+/**
+ * Main application shell layout.
+ *
+ * Provides a responsive sidebar navigation (collapsible on mobile) and a
+ * sticky top header bar. The <Outlet /> renders the matched child route.
+ *
+ * Navigation items are defined declaratively in the `navigation` array
+ * and rendered as <NavLink> elements with active-state styling.
+ * The sidebar also shows the current user's initials and a sign-out button.
+ */
+
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +35,7 @@ import {
   Megaphone
 } from 'lucide-react';
 
+/** Sidebar navigation items – order determines display order. */
 const navigation = [
   { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { name: 'Employees', to: '/employees', icon: Users },
@@ -44,9 +56,14 @@ const navigation = [
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
+  /** Controls the mobile sidebar overlay visibility. */
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
+  /**
+   * Notify the server about the logout (best-effort), then clear local
+   * session state and redirect to the login page.
+   */
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout', {});
@@ -57,8 +74,13 @@ const AppLayout = () => {
     navigate('/login');
   };
 
+  /**
+   * Sidebar JSX extracted into a variable so it can be reused in both
+   * the desktop fixed sidebar and the mobile slide-over overlay.
+   */
   const SidebarContent = (
     <>
+      {/* Brand / logo area */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Fingerprint className="h-5 w-5" />
@@ -68,6 +90,7 @@ const AppLayout = () => {
           <p className="text-xs text-muted-foreground mt-1">HR System</p>
         </div>
       </div>
+      {/* Navigation links */}
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
           const Icon = item.icon;
@@ -75,6 +98,7 @@ const AppLayout = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              /* Only match /dashboard exactly – sub-paths should not highlight it */
               end={item.to === '/dashboard'}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
@@ -91,6 +115,7 @@ const AppLayout = () => {
           );
         })}
       </nav>
+      {/* User info + sign-out at the bottom of the sidebar */}
       <div className="border-t border-border p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
@@ -118,14 +143,15 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-secondary/30">
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar – fixed position, hidden on small screens */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-card border-r border-border">
         {SidebarContent}
       </aside>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar – overlay with backdrop, toggled by hamburger menu */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop – clicking closes the sidebar */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setSidebarOpen(false)}
@@ -142,8 +168,9 @@ const AppLayout = () => {
         </div>
       )}
 
-      {/* Main content */}
+      {/* Main content area – offset by sidebar width on desktop */}
       <div className="lg:pl-64">
+        {/* Sticky top header with mobile hamburger + profile link */}
         <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur px-4 lg:px-8">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -162,6 +189,7 @@ const AppLayout = () => {
           </NavLink>
         </header>
 
+        {/* Child route content rendered here via <Outlet /> */}
         <main className="p-4 lg:p-8">
           <Outlet />
         </main>

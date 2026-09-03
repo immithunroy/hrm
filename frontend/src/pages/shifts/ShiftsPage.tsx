@@ -1,3 +1,18 @@
+/**
+ * ShiftsPage - Work shift definition and assignment management page.
+ *
+ * Features:
+ * - Shift CRUD (create, read, update, delete) with modal form
+ * - Shift activation/deactivation toggle
+ * - Today's shift assignments display
+ * - Summary stats: Total, Active, Inactive shifts and current running shift
+ * - Shift form includes name, start/end time, break duration, description
+ *
+ * State management:
+ * - Parallel fetches for shifts and today's assignments on mount
+ * - Modal state for add/edit with form reset logic
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

@@ -1,3 +1,10 @@
+/**
+ * Settings Controller
+ * -------------------
+ * System-wide settings: payroll configuration (tax rates, overtime rates,
+ * working days/month, etc.) and role management. Settings are stored as
+ * key-value pairs in the SystemSetting table and cached by the service layer.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { getPayrollSettings, updatePayrollSettings } from '../services/settings.service';
 import { prisma } from '../config/database';
@@ -64,12 +71,12 @@ export const updateRole = async (req: Request, res: Response, next: NextFunction
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    // Prevent self-role-change entirely — only another admin should change roles.
+    // Self-role-change is blocked — a different admin must perform the change
     if (employeeId === req.userId) {
       return res.status(400).json({ success: false, message: 'Cannot change your own role. Ask another admin to do it.' });
     }
 
-    // Prevent non-admins from assigning ADMIN role
+    // Only ADMINs can promote someone to the ADMIN role
     if (role === 'ADMIN' && req.userRole !== 'ADMIN') {
       return res.status(403).json({ success: false, message: 'Only ADMIN can assign ADMIN role' });
     }

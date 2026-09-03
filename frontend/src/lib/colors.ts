@@ -1,5 +1,15 @@
-// Shared status color maps so the whole system uses the same colors as the dashboard.
+/**
+ * Shared status color maps used across the entire UI.
+ *
+ * Centralizing colors here ensures consistency between the dashboard,
+ * attendance tables, leave badges, employee status pills, etc.
+ *
+ * Maps are keyed by uppercase status strings (e.g. "PRESENT", "PENDING")
+ * and values are either raw hex colors (STATUS_HEX) or Tailwind utility
+ * class strings for background + text color combinations.
+ */
 
+/** Raw hex colors for attendance statuses (used in charts, custom components). */
 export const STATUS_HEX: Record<string, string> = {
   PRESENT: '#22c55e',
   LATE: '#f97316',
@@ -11,6 +21,7 @@ export const STATUS_HEX: Record<string, string> = {
   WEEKEND: '#9ca3af'
 };
 
+/** Tailwind classes for attendance status badges. */
 export const STATUS_STYLES: Record<string, string> = {
   PRESENT: 'bg-green-100 text-green-800',
   LATE: 'bg-orange-100 text-orange-800',
@@ -22,6 +33,7 @@ export const STATUS_STYLES: Record<string, string> = {
   WEEKEND: 'bg-gray-100 text-gray-800'
 };
 
+/** Tailwind classes for leave request status badges. */
 export const LEAVE_STATUS_STYLES: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
@@ -29,6 +41,7 @@ export const LEAVE_STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-gray-100 text-gray-800'
 };
 
+/** Tailwind classes for recruitment/job posting status badges. */
 export const RECRUITMENT_STATUS_STYLES: Record<string, string> = {
   OPEN: 'bg-green-100 text-green-800',
   ON_HOLD: 'bg-yellow-100 text-yellow-800',
@@ -36,7 +49,7 @@ export const RECRUITMENT_STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-800'
 };
 
-// Human-readable labels for attendance status values.
+/** Human-readable labels for attendance status values. */
 export const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
   PRESENT: 'PRESENT',
   LATE: 'LATE IN',
@@ -48,9 +61,11 @@ export const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
   WEEKEND: 'WEEKEND'
 };
 
+/** Look up a display label for an attendance status, falling back to the raw value. */
 export const attendanceStatusLabel = (status: string): string =>
   ATTENDANCE_STATUS_LABELS[status] || status;
 
+/** Tailwind classes for employee lifecycle status badges. */
 export const EMPLOYEE_STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
   INACTIVE: 'bg-gray-100 text-gray-800',
@@ -61,6 +76,7 @@ export const EMPLOYEE_STATUS_STYLES: Record<string, string> = {
   SUSPENDED: 'bg-yellow-100 text-yellow-800'
 };
 
+/** Tailwind classes for job application pipeline status badges. */
 export const APPLICATION_STATUS_STYLES: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-800',
   REVIEWED: 'bg-yellow-100 text-yellow-800',
@@ -70,7 +86,7 @@ export const APPLICATION_STATUS_STYLES: Record<string, string> = {
   REJECTED: 'bg-red-100 text-red-800'
 };
 
-// Icon card accent colors used across stat cards (dashboard palette).
+/** Accent color classes for dashboard stat cards and icon containers. */
 export const ACCENT_BG: Record<string, string> = {
   blue: 'bg-blue-100 text-blue-600',
   green: 'bg-green-100 text-green-600',

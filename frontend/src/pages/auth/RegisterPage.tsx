@@ -1,3 +1,14 @@
+/**
+ * RegisterPage - New user registration page for the HRM system.
+ *
+ * Features:
+ * - Registration form with first name, last name, email, username, and password
+ * - Form validation with required fields
+ * - Redirects to /dashboard on successful registration
+ * - Loading and error state management
+ * - Link to login page for existing users
+ */
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

@@ -1,3 +1,10 @@
+/**
+ * Notification Controller
+ * -----------------------
+ * User-specific notification management: listing with filters, marking
+ * individual or all notifications as read, deletion, and unread count.
+ * Every query is scoped to the authenticated user's recipientId.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -14,7 +21,6 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
       type
     } = req.query;
 
-    // Get user ID from request (set by auth middleware)
     const userId = req.userId;
     
     if (!userId) {

@@ -1,3 +1,10 @@
+/**
+ * Holiday Controller
+ * ------------------
+ * Manages public holidays: listing by year/month, single and bulk creation,
+ * updates, deletion, and syncing of Bangladesh government holidays from a
+ * Google Calendar feed. All dates are normalised to Dhaka-midnight UTC.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -58,6 +65,7 @@ export const bulkCreateHolidays = async (req: Request, res: Response, next: Next
       return next(new AppError('holidays array is required', 400));
     }
 
+    // Filter to entries that have both date and name, then upsert each
     const valid = items.filter((it: any) => it?.date && it?.name);
     if (valid.length === 0) return next(new AppError('No valid holiday entries provided', 400));
 

@@ -1,16 +1,37 @@
+/**
+ * InactivityWarning – session timeout warning modal.
+ *
+ * Listens for 'inactivity:warning' and 'inactivity:dismiss' custom events
+ * dispatched by InactivityManager. When shown, displays a 5-minute countdown
+ * before forced logout. The user can:
+ *   - Click "Stay Signed In" → dismisses the modal and resets the inactivity
+ *     timers (also broadcasts activity to other tabs).
+ *   - Click "Sign Out" → immediately logs out across all tabs.
+ *   - Do nothing → auto-logs out when the countdown reaches zero.
+ */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
+/** How many seconds the countdown starts from when the warning appears. */
+const COUNTDOWN_SECONDS = 300; // 5 minutes
+
 export default function InactivityWarning() {
   const { logout } = useAuth();
+  /** Whether the warning modal is currently visible. */
   const [visible, setVisible] = useState(false);
-  const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
+  /** Seconds remaining before forced logout. */
+  const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /**
+   * Dismiss the warning modal and reset state.
+   * Broadcasts an activity event so other tabs also reset their timers.
+   */
   const handleDismiss = useCallback(() => {
     setVisible(false);
-    setCountdown(300);
+    setCountdown(COUNTDOWN_SECONDS);
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
@@ -23,6 +44,11 @@ export default function InactivityWarning() {
     } catch {}
   }, []);
 
+  /**
+   * Immediately log the user out.
+   * Notifies other tabs, calls the server logout endpoint (best-effort),
+   * clears local state, and redirects to the login page.
+   */
   const handleLogout = useCallback(async () => {
     setVisible(false);
     if (countdownRef.current) {
@@ -42,10 +68,11 @@ export default function InactivityWarning() {
     window.location.href = '/login?error=session_expired';
   }, [logout]);
 
+  // Listen for custom events from InactivityManager.
   useEffect(() => {
     const onWarning = () => {
       setVisible(true);
-      setCountdown(300);
+      setCountdown(COUNTDOWN_SECONDS);
     };
     const onDismiss = () => handleDismiss();
 
@@ -58,7 +85,7 @@ export default function InactivityWarning() {
     };
   }, [handleDismiss]);
 
-  // Countdown timer
+  // Run the countdown timer while the modal is visible.
   useEffect(() => {
     if (!visible) return;
 

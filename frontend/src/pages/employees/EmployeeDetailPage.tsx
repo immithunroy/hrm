@@ -1,4 +1,24 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿/**
+ * EmployeeDetailPage - Comprehensive employee detail, create, and edit page.
+ *
+ * Features:
+ * - Create new employee (when no ID in URL params)
+ * - View employee profile with photo, employment info, and status badges
+ * - Edit employee form with personal, employment, salary, and bank details
+ * - ZKT device sync and fingerprint enrollment
+ * - Document uploads (photo, government ID, CV/resume)
+ * - Leave balance management (casual/medical)
+ * - Attendance history with date range filters and Excel/PDF export
+ * - Employment lifecycle actions (terminate, resign, retire, delete)
+ * - Salary display for both GROSS and SCALED salary types
+ *
+ * Complex state:
+ * - Multiple async data loads (meta, employee, attendance, leave) in parallel
+ * - View mode switching (today/week/month/range) with date range computation
+ * - Dhaka timezone offset handling for date calculations
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,

@@ -1,3 +1,11 @@
+/**
+ * Employee Controller
+ * -------------------
+ * CRUD operations for employee records. Includes listing with search/filter,
+ * creation with auto-generated usernames, update with role-based field
+ * restrictions, permanent deletion with cascading cleanup, document uploads,
+ * and sub-resource endpoints for attendance, payroll, and leave balances.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -85,7 +93,9 @@ export const getEmployees = async (req: Request, res: Response, next: NextFuncti
       }
     });
 
-    // Numeric-aware ascending sort by employeeId (numbers first, then lexicographic).
+    // Numeric-aware ascending sort: pure numbers sort numerically,
+    // mixed strings (e.g. EMP001) sort lexicographically after numbers.
+
     const numeric = (id: string) => (/^\d+$/.test(id) ? parseInt(id, 10) : null);
     allEmployees.sort((a, b) => {
       const an = numeric(a.employeeId);
@@ -99,7 +109,7 @@ export const getEmployees = async (req: Request, res: Response, next: NextFuncti
     const totalCount = allEmployees.length;
     const employees = allEmployees.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
-    // EMPLOYEE: strip sensitive fields (salary, financial data, etc.)
+    // EMPLOYEE role sees only non-sensitive fields; others never see password.
     const SENSITIVE_FIELDS = ['password', 'salary', 'basicScale', 'accommodationRate', 'medicalRate', 'transportRate', 'mobileInternet', 'salaryType', 'taxId', 'bankAccountNumber', 'bankName'];
     const safeEmployees = employees.map(emp => {
       const stripped: any = { ...emp };
@@ -289,7 +299,8 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
       return next(new AppError('Employee not found', 404));
     }
 
-    // Self-edit: EMPLOYEE can only update safe fields; ADMIN/HR can update anything on their own profile
+    // Role-based field access: EMPLOYEE self-edit is limited to profile
+    // fields; HR/FINANCE/MANAGER cannot escalate roles or exemptions.
     const isSelf = req.userId === id;
     if (isSelf && req.userRole === 'EMPLOYEE') {
       const SAFE_FIELDS = ['firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'weeklyHoliday', 'password'];
@@ -343,7 +354,8 @@ export const updateEmployee = async (req: Request, res: Response, next: NextFunc
       }
     }
 
-    // Build update payload, hashing the password if it was changed.
+    // Build explicit update payload — only fields present in the request are
+    // sent to Prisma, preventing mass assignment. Password is hashed on change.
     const data: any = {};
     if (raw.firstName !== undefined) data.firstName = raw.firstName;
     if (raw.lastName !== undefined) data.lastName = raw.lastName;
@@ -452,6 +464,8 @@ export const deleteEmployee = async (req: Request, res: Response, next: NextFunc
       return next(new AppError('Employee not found', 404));
     }
 
+    // Delete all related records in a single transaction to avoid FK violations.
+    // Order matters: child records first, then the employee itself.
     await prisma.$transaction([
       prisma.attendance.deleteMany({ where: { employeeId: id } }),
       prisma.payroll.deleteMany({ where: { employeeId: id } }),
@@ -501,7 +515,7 @@ export const uploadEmployeeDocument = async (req: Request, res: Response, next: 
     if (!field) return next(new AppError('type must be PHOTO, ID or CV', 400));
     if (!data || typeof data !== 'string') return next(new AppError('data (base64 data URL) is required', 400));
 
-    // Detect MIME from the data-URI prefix or magic bytes.
+    // Validate MIME type from the data-URI prefix, falling back to magic bytes.
     const match = data.match(/^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,(.*)$/s);
     if (!match) return next(new AppError('Invalid base64 data URL', 400));
     const mime = match[1].toLowerCase();
@@ -516,6 +530,7 @@ export const uploadEmployeeDocument = async (req: Request, res: Response, next: 
     else if (mime === 'image/webp') ext = 'webp';
     else return next(new AppError('Only PDF, JPG, PNG or WebP files are supported', 400));
 
+    // Sanitize filename, write to disk, and update the employee record
     const dir = path.join(process.cwd(), 'uploads', 'employee');
     fs.mkdirSync(dir, { recursive: true });
     const safeBase = String(filename || 'document').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '');
@@ -675,6 +690,8 @@ export const updateEmployeeLeaveBalance = async (req: Request, res: Response, ne
 
     const targetYear = parseInt(year) || new Date().getFullYear();
 
+    // Upsert: create a new balance row if none exists for the year, otherwise
+    // update the totals. Default entitlements are 10 casual + 14 medical days.
     const balance = await prisma.leaveBalance.upsert({
       where: { employeeId_year: { employeeId: id, year: targetYear } },
       update: {

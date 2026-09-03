@@ -1,3 +1,21 @@
+/**
+ * DevicesPage - ZKTeco biometric device management page.
+ *
+ * Features:
+ * - Device listing with online/offline status, IP, port, location, log count
+ * - Test connection to individual devices
+ * - Sync attendance logs from device to system
+ * - Push all users (employees with PIN) to device
+ * - Delete old attendance logs (>180 days) from device
+ * - Device users table showing UID, user ID, name, PIN, linked employee
+ * - Show/hide PINs toggle for device users
+ * - Compatible device reference info (F22, F18, K40, SpeedFace, etc.)
+ *
+ * State management:
+ * - Separate loading states for device list and device users
+ * - Delayed re-fetch after async device operations (clear, push, remove)
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

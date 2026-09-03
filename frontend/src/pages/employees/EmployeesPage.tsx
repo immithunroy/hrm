@@ -1,3 +1,19 @@
+/**
+ * EmployeesPage - Employee listing and management page.
+ *
+ * Features:
+ * - Paginated employee table with search functionality
+ * - Debounced search input (300ms delay) to reduce API calls
+ * - Employee status badges with color coding
+ * - Quick actions: View detail, Edit employee
+ * - Add new employee button
+ * - Responsive table layout
+ *
+ * State management:
+ * - Debounced search with useRef timer to avoid excessive re-renders
+ * - Server-side pagination via page/limit query params
+ */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';

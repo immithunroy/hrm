@@ -1,3 +1,19 @@
+/**
+ * AnnouncementsPage - Company announcements management page.
+ *
+ * Features:
+ * - Announcement listing with priority badges and inactive indicators
+ * - Create/Edit announcement modal with title, content, priority, date range
+ * - Priority levels: LOW, NORMAL, HIGH, URGENT
+ * - Optional start and expiry dates for scheduled announcements
+ * - Role-based permissions: Admin/HR can edit, Admin only can delete
+ * - Author and creation date display
+ *
+ * State management:
+ * - Edit mode toggle between create and update operations
+ * - Date fields stored as YYYY-MM-DD strings for input compatibility
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';

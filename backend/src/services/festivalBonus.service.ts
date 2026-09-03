@@ -1,3 +1,19 @@
+/**
+ * Festival Bonus Service
+ *
+ * Manages Eid and other festival bonuses for employees. Supports one-time
+ * or two-installment payment modes. Key exports:
+ *
+ * - createFestivalBonus – single employee bonus (2x basic or gross)
+ * - autoGenerateFestivalBonuses – bulk-create bonuses for all eligible
+ *   employees of a given religion, skipping duplicates
+ * - approveFestivalBonus / markInstallmentPaid – workflow transitions
+ * - cancelFestivalBonus / deleteFestivalBonus – cancellation with guards
+ * - getFestivalBonusSummary – year-level totals (paid / pending / count)
+ *
+ * Bonus amounts use Prisma Decimal for precision. The "BASIC_SALARY" type
+ * awards 2× basic; "GROSS_SALARY" awards 1× basic.
+ */
 import { prisma } from '../config/database';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -13,6 +29,9 @@ export interface FestivalBonusCreateInput {
   notes?: string;
 }
 
+// Create a festival bonus for a single employee.
+// For BASIC_SALARY type, bonus = 2× basic salary; for GROSS_SALARY, bonus = 1× basic.
+// If TWO_INSTALLMENTS, splits evenly (second installment gets the rounding remainder).
 export const createFestivalBonus = async (data: FestivalBonusCreateInput) => {
   const employee = await prisma.employee.findUnique({ where: { id: data.employeeId } });
   if (!employee) throw new Error('Employee not found');
@@ -110,6 +129,9 @@ export const approveFestivalBonus = async (id: string, approvedBy: string) => {
   });
 };
 
+// Mark an installment as paid and update the bonus status.
+// For ONE_TIME, any payment marks the bonus PAID.
+// For TWO_INSTALLMENTS, the bonus is only PAID when both installments are paid.
 export const markInstallmentPaid = async (id: string, installmentNumber: 1 | 2) => {
   const bonus = await prisma.festivalBonus.findUnique({ where: { id } });
   if (!bonus) throw new Error('Festival bonus not found');
@@ -177,6 +199,10 @@ export const getFestivalBonusSummary = async (year: number) => {
   };
 };
 
+// Auto-generate festival bonuses for all eligible employees.
+// Filters by religion (ISLAM for Eid festivals, others for non-Eid),
+// skips employees who already have a bonus of the same type+year,
+// and creates individual bonus records with the specified payment mode.
 export const autoGenerateFestivalBonuses = async (
   year: number,
   festivalType: 'EID_UL_FITR' | 'EID_UL_ADHA' | 'OTHER',

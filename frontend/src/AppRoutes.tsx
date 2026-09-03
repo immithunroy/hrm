@@ -1,3 +1,14 @@
+/**
+ * Application route definitions and authentication guard.
+ *
+ * - Public routes: /login, /register
+ * - ProtectedRoutes: checks auth state and redirects unauthenticated users to /login.
+ *   Preserves the originally-requested location in router state so the login page
+ *   can redirect back after successful authentication.
+ * - AppLayout: provides the persistent sidebar + header shell for all authenticated pages.
+ * - Catch-all (*) redirects to /dashboard.
+ */
+
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -22,6 +33,11 @@ import FestivalBonusPage from './pages/festival-bonus/FestivalBonusPage';
 import TasksPage from './pages/tasks/TasksPage';
 import AnnouncementsPage from './pages/announcements/AnnouncementsPage';
 
+/**
+ * Layout route guard – wraps all authenticated routes.
+ * Shows a loading spinner while the auth session is being verified,
+ * then either renders child routes (Outlet) or redirects to /login.
+ */
 const ProtectedRoutes = () => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
@@ -38,9 +54,11 @@ const ProtectedRoutes = () => {
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* Public routes – accessible without authentication */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
+      {/* Protected routes – require an authenticated user */}
       <Route element={<ProtectedRoutes />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -65,6 +83,7 @@ const AppRoutes = () => {
         </Route>
       </Route>
 
+      {/* Catch-all: unknown paths redirect to dashboard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

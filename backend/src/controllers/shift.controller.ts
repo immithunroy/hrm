@@ -1,3 +1,10 @@
+/**
+ * Shift Controller
+ * ----------------
+ * Manages work shift definitions (name, start/end time, break minutes)
+ * and shift assignments that link employees to specific dates. Supports
+ * CRUD for both shifts and their per-day assignments.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -82,7 +89,7 @@ export const createShift = async (req: Request, res: Response, next: NextFunctio
   try {
     const shiftData = req.body;
 
-    // Validate time format
+    // Enforce 24-hour HH:mm format for start and end times
     const startTimeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     const endTimeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
     
@@ -175,7 +182,7 @@ export const deleteShift = async (req: Request, res: Response, next: NextFunctio
       return next(new AppError('Shift not found', 404));
     }
 
-    // Check if shift has active assignments
+    // Prevent deletion when future assignments still reference this shift
     const activeAssignments = await prisma.shiftAssignment.count({
       where: {
         shiftId: id,

@@ -1,3 +1,10 @@
+/**
+ * Festival Bonus Controller
+ * -------------------------
+ * Manages festival bonus records: creation, approval, installment tracking,
+ * cancellation, and auto-generation for all active employees. Supports
+ * one-time and two-installment payment modes.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/appError';
 import * as festivalBonusService from '../services/festivalBonus.service';
@@ -28,7 +35,7 @@ export const getFestivalBonuses = async (req: Request, res: Response, next: Next
   try {
     const { year, employeeId, festivalType, status, page, limit } = req.query;
 
-    // EMPLOYEE: force own bonuses only
+    // Employees are restricted to their own bonus records
     const effectiveEmployeeId = req.userRole === 'EMPLOYEE'
       ? req.userId
       : (employeeId as string | undefined);

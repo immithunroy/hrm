@@ -1,3 +1,10 @@
+/**
+ * Loan Controller
+ * ---------------
+ * Manages employee loans: creation, approval, disbursement, payment recording,
+ * and installment tracking. Employees can only view their own loans; admins
+ * manage the full lifecycle. The service layer enforces status transitions.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/appError';
 import * as loanService from '../services/loan.service';
@@ -41,7 +48,7 @@ export const getLoans = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { employeeId, status, page, limit } = req.query;
 
-    // EMPLOYEE: force own loans only
+    // Employees are restricted to their own loans regardless of query param
     const effectiveEmployeeId = req.userRole === 'EMPLOYEE'
       ? req.userId
       : (employeeId as string | undefined);

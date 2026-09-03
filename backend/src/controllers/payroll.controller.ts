@@ -1,3 +1,12 @@
+/**
+ * Payroll Controller
+ * ------------------
+ * Handles payroll processing, record CRUD, payslip exports (XLSX/PDF),
+ * and payroll statistics. The processPayroll endpoint computes salary
+ * breakdowns from attendance, splits overtime into regular vs. holiday,
+ * applies errand deductions, auto-deducts active loan installments, and
+ * generates per-employee payroll records in one pass.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -56,6 +65,10 @@ const calculateSalaryBreakdown = (employee: any) => {
   };
 };
 
+/**
+ * Compute the UTC start/end boundaries for a given Dhaka calendar month.
+ * The offsets ensure "month 3, day 1" starts at midnight Dhaka time.
+ */
 const monthBounds = (y: number, m: number) => {
   const start = new Date(Date.UTC(y, m - 1, 1) - DHAKA_OFFSET_MS);
   const end = new Date(Date.UTC(y, m, 1) - DHAKA_OFFSET_MS - 1);
@@ -66,6 +79,12 @@ const monthBounds = (y: number, m: number) => {
 // Early-attendance OT is split separately so it can be included/excluded at payslip time.
 // holidaySet must be pre-fetched for the relevant year to avoid N+1 queries.
 
+/**
+ * Split attendance overtime into regular vs. holiday buckets.
+ * A day is a holiday if it falls on the employee's weekly holiday or in the
+ * national holiday set. Early-attendance OT is tracked separately so it can
+ * be included/excluded at payslip time based on settings.
+ */
 const splitOvertime = async (
   rows: Array<{ date: Date; overtimeHours?: number | null; earlyOvertimeHours?: number | null }>,
   weeklyHoliday: string,
@@ -778,7 +797,7 @@ export const processPayroll = async (req: Request, res: Response, next: NextFunc
         }
       });
 
-      // Auto-record loan installment payments linked to this payroll
+      // Auto-record loan installment payments linked to this payroll record
       for (const payment of installmentPaymentData) {
         const installment = await prisma.loanInstallment.findUnique({ where: { id: payment.installmentId } });
         if (!installment) continue;

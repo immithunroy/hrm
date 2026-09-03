@@ -1,3 +1,21 @@
+/**
+ * ZKT Attendance Device Service
+ *
+ * Manages the connection to a ZKT biometric attendance device, processes
+ * real-time and batch punch records, and maintains attendance summaries in
+ * the database. Key exports:
+ *
+ * - connectZKTDevice / disconnectZKTDevice – lifecycle of the device TCP link
+ * - processPunch – insert a single punch and recompute the daily record
+ * - syncAttendanceNow – bulk-sync all pending logs from the device
+ * - recomputeAllAttendance – re-derive all summaries after rule/config changes
+ * - autoSignOutIfNeeded – close open single-punch days at the 04:00 rollover
+ * - pushUserToDevice / syncAllUsersToDevice – manage device user registry
+ * - enrollFingerprint – interactive fingerprint capture on the terminal
+ * - computeManualAttendance – admin-entered attendance calculation
+ *
+ * All times are stored in UTC; the work-day boundary is 04:00 Asia/Dhaka.
+ */
 import ZKAttendanceClient from 'zk-attendance-sdk';
 import { prisma } from '../config/database';
 import { Server } from 'socket.io';
@@ -73,6 +91,7 @@ const dhakaMidnight = (y: number, m: number, d: number): Date =>
   new Date(Date.UTC(y, m, d) - DHAKA_OFFSET_MS);
 
 // Which work-day a punch belongs to (Dhaka, 04:00 boundary).
+// Punches before 04:00 Dhaka count as the previous calendar day.
 const getPunchDay = (punchMs: number): { date: Date; dayEnd: Date; nowClosed: boolean } => {
   const local = new Date(punchMs + DHAKA_OFFSET_MS);
   let y = local.getUTCFullYear();
@@ -95,6 +114,18 @@ const dhakaMinutes = (punchMs: number): number => {
 };
 
 // Compute the daily summary from a sorted list of punch timestamps (ms).
+//
+// Algorithm:
+//   1. Deduplicate and sort punches chronologically.
+//   2. First punch = check-in, last punch = check-out.
+//   3. Gaps at odd indexes (out→back-in) are personal errand trips.
+//   4. Shift break (lunch) is only deducted when signed out after 4 PM
+//      (partial days before 4 PM lose no lunch break).
+//   5. Late = check-in after shift start; Early departure = check-out before
+//      shift end.
+//   6. OT after shift = time after shift end (only if signed out after end).
+//   7. Early-attendance OT = up to 10 min before shift start, only credited
+//      when the full shift was completed.
 const computeDailySummary = (
   punchesMs: number[],
   shift: ShiftWindow,
@@ -232,6 +263,8 @@ const getShiftForEmployee = async (employeeId: string, date: Date): Promise<Shif
 };
 
 // Insert a punch (ms) into the employee's daily record and recompute the summary.
+// Resolves the employee by employeeId, id, or deviceUid. Auto-closes any
+// previous open day before inserting the new punch.
 export const processPunch = async (userId: string, punchMs: number): Promise<any | null> => {
   try {
     const employee = await resolveEmployee(userId);
@@ -489,7 +522,10 @@ const authDevice = async (client: ZKAttendanceClient, username: string, password
   return (client as unknown as ZKAuthable).auth(username, password);
 };
 
-// Initialize ZKT device connection
+// Initialize ZKT device connection.
+// Flow: create socket → authenticate (optional) → enable device → register
+// in DB → start real-time listener → start periodic sync → correct device clock.
+// Schedules auto-reconnect on failure/disconnect.
 export const connectZKTDevice = async (io: Server) => {
   if (isConnecting) return;
   isConnecting = true;
@@ -845,6 +881,7 @@ export const disconnectZKTDevice = async () => {
 
 // Serialize device commands so the SDK's single TCP socket never runs two
 // commands at once (the SDK raises [BUSY] if you fire while one is running).
+// Each call chains onto the previous, ensuring strict serial execution.
 let deviceOpChain: Promise<any> = Promise.resolve();
 const withDeviceOp = <T>(fn: () => Promise<T>): Promise<T> => {
   const run = deviceOpChain.then(fn, fn);
@@ -985,6 +1022,9 @@ export const deleteDeviceUser = async (uid: number) => {
  * -> the device replies with the captured template (CMD_USERTEMP_WRQ) -> we
  * echo that template back via CMD_USERTEMP_WRQ to save it to the user record.
  *
+ * If the employee has no deviceUid yet, a fresh one is assigned and a user
+ * record is created on the device first (so the template can attach to it).
+ *
  * The employee must physically press a finger on the terminal within
  * `timeoutMs` of calling this endpoint.
  */
@@ -1059,6 +1099,7 @@ export const cancelCapture = async () => {
  * Compute a daily attendance summary from an admin-provided date + punches.
  * Uses the active shift to derive work hours, overtime, lateness, status.
  * Returns the data payload for create/update (without employeeId).
+ * This is the manual-attendance entry path (no device involved).
  */
 export const computeManualAttendance = async (
   dateStr: string,

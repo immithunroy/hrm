@@ -1,3 +1,18 @@
+/**
+ * Holiday Management Service
+ *
+ * Manages company-wide holidays and per-employee weekly holidays for
+ * attendance classification. Key exports:
+ *
+ * - getHolidaysForMonth / getHolidaySet – query marked holidays
+ * - isWeeklyHoliday / countWeeklyHolidays – per-employee weekend checks
+ * - syncGoogleBangladeshHolidays – imports official BD government office
+ *   holidays from an iCal feed, filtering out non-administrative observances
+ * - parseGoogleIcs – parses iCal text into { date, name } pairs
+ * - dhakaDayStart / dhakaDayString – Dhaka timezone normalization helpers
+ *
+ * All dates are stored as UTC instants representing Dhaka midnight (UTC+6).
+ */
 import { prisma } from '../config/database';
 
 const DHAKA_OFFSET_MS = 6 * 3600 * 1000;
@@ -46,6 +61,8 @@ export const getWeeklyHoliday = (employee: { weeklyHoliday?: string | null }): s
 };
 
 // Is the given Dhaka day (YYYY-MM-DD) the employee's weekly holiday?
+// Check if a YYYY-MM-DD string matches the employee's weekly holiday weekday.
+// Uses UTC day-of-week since dates are stored as Dhaka midnight UTC.
 export const isWeeklyHoliday = (dateStr: string, weeklyHoliday: string): boolean => {
   const [y, m, d] = dateStr.split('-').map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sunday .. 6=Saturday
@@ -54,6 +71,8 @@ export const isWeeklyHoliday = (dateStr: string, weeklyHoliday: string): boolean
 };
 
 // Count of weekly holidays between two Dhaka days (inclusive) for a given weekly holiday.
+// Count weekly holidays in a date range by iterating each day.
+// Used for payslip calculations to exclude weekends from working days.
 export const countWeeklyHolidays = (startStr: string, endStr: string, weeklyHoliday: string): number => {
   const start = new Date(`${startStr}T00:00:00Z`);
   const end = new Date(`${endStr}T00:00:00Z`);
@@ -119,7 +138,9 @@ const NON_GOVT_HOLIDAY_PATTERNS: RegExp[] = [
 export const isNonGovtHolidayName = (name: string): boolean =>
   NON_GOVT_HOLIDAY_PATTERNS.some((re) => re.test(name));
 
-// Parse a Google iCal feed into [{ date: 'YYYY-MM-DD', name }].
+// Parse an iCal (VCALENDAR/VEVENT) text block into [{ date, name }].
+// Extracts DTSTART (YYYYMMDD format) and SUMMARY for each event.
+// Skips events without a valid 8-digit date or missing summary.
 export const parseGoogleIcs = (ics: string): Array<{ date: string; name: string }> => {
   const events: Array<{ date: string; name: string }> = [];
   const blocks = ics.split('BEGIN:VEVENT');
@@ -145,6 +166,9 @@ export const parseGoogleIcs = (ics: string): Array<{ date: string; name: string 
 };
 
 // Fetch and import the Bangladesh government office holidays calendar (idempotent upsert).
+// Fetch BD government holidays from iCal, filter out non-administrative
+// observances, and upsert into the Holiday table. Also cleans up any
+// previously imported non-government holidays from the DB.
 export const syncGoogleBangladeshHolidays = async (): Promise<{
   created: number;
   skipped: number;

@@ -1,3 +1,20 @@
+/**
+ * LoansPage - Employee loan management page with installment tracking.
+ *
+ * Features:
+ * - Loan listing with search, status filter, and pagination
+ * - Create loan modal with amount, interest rate, installment config
+ * - Loan lifecycle actions: Approve, Disburse, Cancel
+ * - Loan detail modal with installment table and payment recording
+ * - Summary stats: Active loans, total borrowed, outstanding, overdue
+ * - Partial installment payments supported
+ *
+ * State management:
+ * - Multiple modals: create, detail, and pay installment
+ * - Search filter applied client-side on paginated results
+ * - Summary fetched per logged-in user
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';

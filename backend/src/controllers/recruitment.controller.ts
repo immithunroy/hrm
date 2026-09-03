@@ -1,3 +1,10 @@
+/**
+ * Recruitment Controller
+ * ----------------------
+ * Manages job postings and applicant tracking: CRUD for recruitment listings,
+ * applicant management (including CV uploads), and filtering by department,
+ * status, and employment type. CV files are stored under uploads/cv/.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -316,12 +323,12 @@ export const createApplicant = async (req: Request, res: Response, next: NextFun
       return next(new AppError('Recruitment not found', 404));
     }
 
-    // Check if recruitment is still open
+    // Only accept applications while the posting is open and before the deadline
     if (recruitment.status !== 'OPEN') {
       return next(new AppError('Recruitment is not open for applications', 400));
     }
 
-    // Check if closing date has passed
+    if (recruitment.closingDate && new Date() > recruitment.closingDate) {
     if (recruitment.closingDate && new Date() > recruitment.closingDate) {
       return next(new AppError('Recruitment application period has ended', 400));
     }
@@ -360,6 +367,8 @@ export const updateApplicant = async (req: Request, res: Response, next: NextFun
       return next(new AppError('Applicant not found', 404));
     }
 
+    // Auto-set interviewedAt timestamp when status transitions to INTERVIEWED
+    // or HIRED; clear it when reverted to NEW.
     const updatedApplicant = await prisma.applicant.update({
       where: { id: applicantId },
       data: {
@@ -430,7 +439,7 @@ export const uploadApplicantCv = async (req: Request, res: Response, next: NextF
       return next(new AppError('CV file data (base64) is required', 400));
     }
 
-    // Detect MIME from the base64 prefix if a filename was not provided/recognized.
+    // Detect MIME type: first try the data-URI prefix, then check magic bytes
     let mime = 'application/octet-stream';
     const match = /^data:([a-zA-Z0-9./+-]+);base64,/.exec(data);
     const base64 = match ? data.slice(match[0].length) : data.replace(/\s+/g, '');

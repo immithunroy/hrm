@@ -1,3 +1,10 @@
+/**
+ * Task Controller
+ * ----------------
+ * Manages internal tasks assigned to employees. Supports filtering by
+ * status, category, and assignee. Employees see only their own tasks;
+ * admins/managers can view and create tasks for anyone.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -182,6 +189,7 @@ export const updateTask = async (req: Request, res: Response, next: NextFunction
     }
 
     const updateData: any = {};
+    // Auto-set completedAt timestamp when task is marked COMPLETED
     if (status) {
       updateData.status = status;
       if (status === 'COMPLETED') updateData.completedAt = new Date();

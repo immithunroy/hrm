@@ -1,3 +1,11 @@
+/**
+ * Dashboard Controller
+ * --------------------
+ * Aggregates data for the main dashboard: today's attendance overview,
+ * 30-day trend, monthly calendar grid, department breakdown, payroll
+ * summary, recent attendance, and leave summary. All calculations are
+ * performed in the Asia/Dhaka timezone.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { getHolidaysForMonth, dhakaDayString, isWeeklyHoliday, isMarkedHoliday } from '../services/holiday.service';
@@ -35,7 +43,7 @@ export const getDashboard = async (req: Request, res: Response, next: NextFuncti
         prisma.leaveRequest.count({ where: { status: 'PENDING' } })
       ]);
 
-    // ----- Today's attendance (04:00 Dhaka work day) -----
+    // ----- Today's attendance snapshot -----
     const todayStart = new Date(dayStartMs(todayStr));
     const todayEnd = new Date(dayStartMs(todayStr) + 86400000 - 1);
     const todaysRecords = await prisma.attendance.findMany({
@@ -168,8 +176,8 @@ export const getDashboard = async (req: Request, res: Response, next: NextFuncti
       totalOvertimeHoursMonth += r.earlyOvertimeHours || 0;
     });
 
-    // Calendar grid: one entry per Dhaka calendar day of the current month,
-    // synced with attendance + holidays.
+    // Calendar grid: one entry per Dhaka calendar day, combining attendance
+    // records with holiday and weekly-holiday information.
     const monthYear = nowUTC.getUTCFullYear();
     const monthNum = nowUTC.getUTCMonth() + 1;
     const holidaysThisMonth = await getHolidaysForMonth(monthYear, monthNum);

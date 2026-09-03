@@ -1,3 +1,19 @@
+/**
+ * PayrollPage - Payroll processing and pay slip generation page.
+ *
+ * Features:
+ * - Auto-calculate payroll from attendance data for a selected month
+ * - Process payroll button with confirmation dialog
+ * - Employee table showing monthly salary and processed net pay
+ * - Individual pay slip export (Excel/PDF) per employee
+ * - Processed payroll records table with basic salary, overtime, tax, net pay
+ * - Month selector for navigating between pay periods
+ *
+ * State management:
+ * - Month state drives both employee and payroll record fetches
+ * - recordByEmployee Map for O(1) lookup of processed records
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

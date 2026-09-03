@@ -1,3 +1,21 @@
+/**
+ * FestivalBonusPage - Festival bonus management for Eid and other festivals.
+ *
+ * Features:
+ * - Bonus listing with year, status, and festival type filters
+ * - Create individual bonus or auto-generate for all eligible employees
+ * - Auto-generate respects employee religion for Eid eligibility
+ * - Bonus types: 2x Basic Salary or 1x Gross Salary
+ * - Payment modes: One Time or 2 Installments
+ * - Approve, Cancel, Delete actions per bonus
+ * - Installment payment marking for two-installment mode
+ * - Summary stats: Total bonuses, amount, paid, pending
+ *
+ * State management:
+ * - Multiple modals: create, auto-generate, detail
+ * - Client-side search filter on server-paginated results
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';

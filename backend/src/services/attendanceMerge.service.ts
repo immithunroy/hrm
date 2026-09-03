@@ -1,19 +1,32 @@
+/**
+ * Attendance Merge Service
+ *
+ * Merges real attendance records with synthesized calendar rows so that
+ * attendance lists and payslip reports show every expected work day,
+ * including those with no device punch. Synthesized statuses:
+ *
+ *   HOLIDAY – company-wide marked holiday
+ *   LEAVE   – approved leave request covering the day
+ *   WEEKEND – employee's weekly holiday (default FRIDAY)
+ *   ABSENT  – no record, no holiday, no leave
+ *
+ * Used by the payslip and attendance report generators to produce
+ * complete monthly views.
+ */
 import { prisma } from '../config/database';
 import { dhakaDayString, isWeeklyHoliday } from './holiday.service';
 import { getPayrollSettings } from './settings.service';
 
 const DAY_MS = 86400000;
 
-// Merge real attendance records with synthesized calendar rows so the
-// attendance list / sheets show HOLIDAY (company holiday), LEAVE (approved
-// leave request) and WEEKEND (employee weekly holiday) days too.
+// Merge real attendance records with synthesized calendar rows.
 //
-// Rules (in precedence order, per active non-exempt employee + day):
-//   1. A real attendance record wins (no synthetic duplicate).
-//   2. Company holiday (Holiday table) -> HOLIDAY
-//   3. Approved leave covering the day -> LEAVE
-//   4. Employee's weekly holiday -> WEEKEND
-// Days with none of the above and no real record are simply omitted.
+// For each active non-exempt employee × each day in [start, end]:
+//   - If a real punch record exists for that day, it wins (no duplicate).
+//   - Otherwise, synthesize a row with status: HOLIDAY > LEAVE > WEEKEND > ABSENT.
+//
+// This ensures attendance reports show a complete monthly view including
+// holidays, leaves, weekends, and absences alongside real punch data.
 export const mergeAttendanceWithCalendar = async (
   realRecords: any[],
   opts: { start?: Date; end?: Date; employeeId?: string }

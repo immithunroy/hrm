@@ -1,3 +1,29 @@
+/**
+ * Employee Routes
+ * 
+ * CRUD operations for employee management, including document uploads,
+ * employment status changes, and employee-specific data lookups.
+ * 
+ * All routes require authentication. Authorization varies by role:
+ *   - ADMIN/HR: Full access (create, update, delete, status changes)
+ *   - MANAGER: Read access to team members
+ *   - EMPLOYEE: Read-only access to own profile and subordinates
+ * 
+ * Endpoints:
+ *   GET    /                        - List all employees (paginated, filterable)
+ *   GET    /meta                    - Get employee metadata (dropdowns, counts)
+ *   GET    /:id                     - Get employee by ID (self or admin/HR)
+ *   POST   /                        - Create new employee (admin/HR only)
+ *   PUT    /:id                     - Update employee (self or admin/HR)
+ *   DELETE /:id                     - Delete employee (admin/HR only)
+ *   POST   /:id/documents           - Upload employee document (admin/HR only)
+ *   POST   /:id/:action             - Set employment status (admin/HR only)
+ *   GET    /:id/attendance          - Get employee attendance records
+ *   GET    /:id/payroll             - Get employee payroll records
+ *   GET    /:id/leave-balance       - Get employee leave balance
+ *   PUT    /:id/leave-balance       - Update employee leave balance (admin/HR only)
+ */
+
 import { Router } from 'express';
 import { 
   getEmployees, 
@@ -21,7 +47,7 @@ import { employeeSchema, updateEmployeeSchema } from '../schemas/employee.schema
 
 const router = Router();
 
-// Protect all routes
+// Protect all routes — authentication required for every endpoint
 router.use(authenticateToken);
 
 // Employee management routes
@@ -45,7 +71,7 @@ router.post('/:id/documents', authorize('ADMIN', 'HR'), uploadEmployeeDocument);
 // Must be registered AFTER /:id/documents so 'documents' is not treated as an action.
 router.post('/:id/:action', authorize('ADMIN', 'HR'), setEmploymentStatus);
 
-// Employee-specific routes — self or admin/HR can view
+// Employee-specific data routes — self or admin/HR can view
 router.get('/:id/attendance', authorizeOrSelf('ADMIN', 'MANAGER', 'HR'), getEmployeeAttendance);
 router.get('/:id/payroll', authorizeOrSelf('ADMIN', 'MANAGER', 'HR'), getEmployeePayroll);
 router.get('/:id/leave-balance', authorizeOrSelf('ADMIN', 'MANAGER', 'HR'), getEmployeeLeaveBalance);

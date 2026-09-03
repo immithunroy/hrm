@@ -202,6 +202,45 @@ The backend provides a RESTful API at `/api` with the following endpoints:
 - `/dashboard` - Dashboard analytics (`GET /`)
 - `/devices` - ZKT device management (`POST /devices/sync`, `POST /devices/clear-old-logs`, `GET/POST/DELETE /devices/users`, `POST /devices/users/sync-all`, `POST /devices/users/:employeeId/sync`, `POST /devices/users/:employeeId/enroll`)
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) directory:
+
+| Document | Description |
+|----------|-------------|
+| [API Documentation](./docs/API.md) | Complete reference for all 107 REST API endpoints |
+| [Database Schema](./docs/DATABASE.md) | All 17 models, 25+ enums, relationships, and field descriptions |
+| [Architecture](./docs/ARCHITECTURE.md) | System design, request flows, key decisions, deployment architecture |
+| [Backend Guide](./docs/BACKEND.md) | Backend developer guide — project structure, patterns, adding endpoints |
+| [Frontend Guide](./docs/FRONTEND.md) | Frontend developer guide — routing, components, styling, adding pages |
+| [Deployment Guide](./docs/DEPLOYMENT.md) | Docker, CI/CD, environment variables, backup, troubleshooting |
+
+## Project Structure
+
+```
+hrm/
+├── backend/              # Express.js + TypeScript API (107 endpoints)
+│   ├── src/
+│   │   ├── server.ts     # Entry point
+│   │   ├── routes/       # 16 route files
+│   │   ├── controllers/  # 16 controller files
+│   │   ├── services/     # 7 service files (business logic)
+│   │   ├── schemas/      # 11 Zod validation schemas
+│   │   ├── middleware/    # Auth, rate limiting, validation
+│   │   └── utils/        # Error handling
+│   └── prisma/           # Database schema (737 lines)
+├── frontend/             # React + TypeScript + Tailwind CSS
+│   └── src/
+│       ├── pages/        # 18 page components
+│       ├── components/   # Layout + 22 UI primitives
+│       ├── context/      # AuthContext
+│       ├── services/     # API client
+│       └── lib/          # Utilities (format, colors)
+├── mobile/               # React Native + Expo (see mobile-app repo)
+├── docs/                 # Comprehensive documentation
+└── docker-compose.yml    # 3 services: db, backend, frontend
+```
+
 ## Contributing
 
 1. Fork the repository
@@ -209,6 +248,8 @@ The backend provides a RESTful API at `/api` with the following endpoints:
 3. Commit your changes
 4. Push to the branch
 5. Open a pull request
+
+See [Backend Guide](./docs/BACKEND.md) and [Frontend Guide](./docs/FRONTEND.md) for development patterns and conventions.
 
 ## License
 

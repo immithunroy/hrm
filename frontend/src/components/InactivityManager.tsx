@@ -1,11 +1,32 @@
+/**
+ * InactivityManager – silently enforces session timeout.
+ *
+ * This component renders nothing (returns null) but manages two timers:
+ *   1. Warning timer  – fires after 25 min of inactivity, dispatches an
+ *      'inactivity:warning' custom event so InactivityWarning can show a modal.
+ *   2. Timeout timer  – fires after 30 min of inactivity, forces logout.
+ *
+ * Any detected user activity (mouse, keyboard, scroll, touch) resets both
+ * timers via a throttled handler (once every 5 s) to avoid excessive work.
+ *
+ * Multi-tab synchronization:
+ *   - BroadcastChannel 'hrm-auth' listens for 'auth:logout' (forced sign-out)
+ *     and 'auth:activity' (another tab had activity) messages.
+ *   - A storage event listener catches token removal from another tab.
+ */
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
-const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-const WARNING_MS = 25 * 60 * 1000; // 25 minutes
-const ACTIVITY_THROTTLE_MS = 5000; // 5 seconds
+/** Time after which the user is forcibly logged out (30 minutes). */
+const TIMEOUT_MS = 30 * 60 * 1000;
+/** Time after which a warning modal is shown (25 minutes – 5 min before timeout). */
+const WARNING_MS = 25 * 60 * 1000;
+/** Minimum interval between activity handler invocations (prevents flood). */
+const ACTIVITY_THROTTLE_MS = 5000;
 
+/** DOM events considered as user activity. */
 const ACTIVITY_EVENTS = [
   'mousemove',
   'mousedown',
@@ -15,6 +36,7 @@ const ACTIVITY_EVENTS = [
   'click',
 ] as const;
 
+/** Simple leading-edge throttle: invokes fn at most once per `limit` ms. */
 function throttle<T extends (...args: any[]) => void>(fn: T, limit: number): T {
   let lastCall = 0;
   return ((...args: any[]) => {
@@ -33,6 +55,7 @@ export default function InactivityManager() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const activityRef = useRef<ReturnType<typeof throttle> | null>(null);
 
+  /** Clear both the warning and timeout timers. */
   const clearTimers = useCallback(() => {
     if (warningTimerRef.current) {
       clearTimeout(warningTimerRef.current);
@@ -44,10 +67,16 @@ export default function InactivityManager() {
     }
   }, []);
 
+  /** Dispatch a custom event to hide the inactivity warning modal. */
   const dismissWarning = useCallback(() => {
     window.dispatchEvent(new CustomEvent('inactivity:dismiss'));
   }, []);
 
+  /**
+   * Reset both timers from zero.
+   * - Warning fires at WARNING_MS (shows modal)
+   * - Timeout fires at TIMEOUT_MS (forces logout)
+   */
   const resetTimers = useCallback(() => {
     clearTimers();
 
@@ -66,13 +95,17 @@ export default function InactivityManager() {
     }, TIMEOUT_MS);
   }, [clearTimers, logout]);
 
+  /**
+   * Called on any user activity.
+   * Dismisses any visible warning and restarts the inactivity timers.
+   */
   const handleActivity = useCallback(() => {
     if (!user) return;
     dismissWarning();
     resetTimers();
   }, [user, dismissWarning, resetTimers]);
 
-  // BroadcastChannel for multi-tab sync
+  // BroadcastChannel: listen for cross-tab logout and activity events.
   useEffect(() => {
     if (!user) return;
 
@@ -86,6 +119,7 @@ export default function InactivityManager() {
           window.location.href = '/login?error=session_expired';
         }
         if (event.data.type === 'auth:activity') {
+          // Another tab had activity – reset our timers too
           handleActivity();
         }
       };
@@ -99,7 +133,7 @@ export default function InactivityManager() {
     };
   }, [user, handleActivity, clearTimers, logout]);
 
-  // Activity listeners
+  // Attach DOM activity event listeners and start the initial timers.
   useEffect(() => {
     if (!user) {
       clearTimers();
@@ -124,7 +158,7 @@ export default function InactivityManager() {
     };
   }, [user, handleActivity, clearTimers, resetTimers]);
 
-  // Listen for token removal from other tabs
+  // Fallback: detect token removal from another tab via the storage event.
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'accessToken' && !e.newValue) {
@@ -137,5 +171,6 @@ export default function InactivityManager() {
     return () => window.removeEventListener('storage', handleStorage);
   }, [clearTimers, logout]);
 
+  // This component manages timers only – no visual output.
   return null;
 }

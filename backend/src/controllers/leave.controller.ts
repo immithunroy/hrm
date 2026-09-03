@@ -1,3 +1,11 @@
+/**
+ * Leave Controller
+ * ----------------
+ * Manages employee leave requests: listing, creation, updates, deletion,
+ * approval/rejection workflows, and leave statistics. Employees can only
+ * view and manage their own leave requests; managers/HR can approve or
+ * reject requests on behalf of others.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/appError';
@@ -159,7 +167,7 @@ export const createLeaveRequest = async (req: Request, res: Response, next: Next
       return next(new AppError('Start date must be before or equal to end date', 400));
     }
 
-    // Calculate days requested
+    // Calculate inclusive number of days (both start and end dates count)
     const timeDiff = endDate.getTime() - startDate.getTime();
     const daysRequested = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
 
@@ -204,7 +212,7 @@ export const updateLeaveRequest = async (req: Request, res: Response, next: Next
       return next(new AppError('Insufficient permissions', 403));
     }
 
-    // EMPLOYEE: can only edit PENDING leaves, and only dates/type (not status, approvedBy)
+    // Employees may only edit their own pending requests (dates/type, not status)
     if (req.userRole === 'EMPLOYEE') {
       if (leaveRequest.status !== 'PENDING') {
         return next(new AppError('Can only edit pending leave requests', 400));
@@ -330,6 +338,7 @@ export const approveLeaveRequest = async (req: Request, res: Response, next: Nex
       }
     });
 
+    // Notify the employee that their leave request was approved
     await prisma.notification.create({
       data: {
         recipientId: leaveRequest.employeeId,

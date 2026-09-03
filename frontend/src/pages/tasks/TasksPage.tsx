@@ -1,3 +1,19 @@
+/**
+ * TasksPage - Task management and assignment page.
+ *
+ * Features:
+ * - Task listing with status and category filters
+ * - Create task modal with title, description, priority, category, assignee, due date
+ * - Task status updates: PENDING -> IN_PROGRESS -> COMPLETED / CANCELLED
+ * - Role-based permissions: Admin/Manager/HR can create, Admin/Manager can delete
+ * - Status and priority color-coded badges
+ * - Task categories: HRM, CUSTOMER, NETWORK, FIELD
+ *
+ * State management:
+ * - Employee list fetched on demand when create modal opens
+ * - Role-based UI element visibility via canCreate/canDelete flags
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';

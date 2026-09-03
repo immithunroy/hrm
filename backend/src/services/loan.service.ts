@@ -1,3 +1,20 @@
+/**
+ * Employee Loan Management Service
+ *
+ * Handles the full loan lifecycle: creation, approval, disbursement,
+ * installment generation, payment recording, and overdue tracking.
+ *
+ * Key exports:
+ * - createLoan – creates a loan with optional auto-generated installments
+ * - approveLoan / disburseLoan – approval and disbursement workflow
+ * - recordPayment – records a payment against a specific installment,
+ *   updates remaining balance, and auto-marks the loan as COMPLETED
+ * - updateOverdueStatus – batch-marks overdue installments and DEFAULTED loans
+ * - cancelLoan – waives remaining installments
+ * - getLoanSummary – aggregated borrow/repaid/outstanding stats for an employee
+ *
+ * Monetary calculations use Prisma Decimal for precision.
+ */
 import { prisma } from '../config/database';
 import { Decimal } from '@prisma/client/runtime/library';
 
@@ -20,6 +37,8 @@ export interface LoanInstallmentCreateInput {
   amount: number | Decimal;
 }
 
+// Create a new loan. Calculates totalAmount = principal + interest, then
+// optionally auto-generates installment records if count and amount are given.
 export const createLoan = async (data: LoanCreateInput) => {
   const amount = new Decimal(data.amount);
   const interestRate = data.interestRate ? new Decimal(data.interestRate) : new Decimal(0);
@@ -56,6 +75,8 @@ export const createLoan = async (data: LoanCreateInput) => {
   return loan;
 };
 
+// Generate installment records by iterating from startDate, advancing
+// the date by the specified frequency (WEEKLY=7d, BIWEEKLY=14d, MONTHLY, QUARTERLY).
 export const generateInstallments = async (
   loanId: string,
   count: number,
@@ -181,6 +202,9 @@ export const disburseLoan = async (id: string) => {
   });
 };
 
+// Record a payment against a specific installment.
+// Updates installment paidAmount/status, decrements loan remainingAmount,
+// and auto-marks the loan as COMPLETED when remainingAmount <= 0.
 export const recordPayment = async (loanId: string, installmentId: string, amount: number | Decimal, payrollId?: string) => {
   const installment = await prisma.loanInstallment.findUnique({ where: { id: installmentId } });
   if (!installment) throw new Error('Installment not found');
@@ -220,6 +244,9 @@ export const recordPayment = async (loanId: string, installmentId: string, amoun
   return { installment: updatedInstallment, loan: updatedLoan };
 };
 
+// Compute aggregated loan stats for an employee:
+// totalLoans, activeLoans, totalBorrowed, totalRepaid, totalOutstanding,
+// overdueCount, overdueAmount. Uses Decimal for precision throughout.
 export const getLoanSummary = async (employeeId: string) => {
   const loans = await prisma.loan.findMany({
     where: { employeeId },
@@ -243,6 +270,9 @@ export const getLoanSummary = async (employeeId: string) => {
   };
 };
 
+// Batch-update overdue installments: find all PENDING installments whose
+// dueDate has passed, mark them OVERDUE, and set their parent loan to
+// DEFAULTED if it was still ACTIVE.
 export const updateOverdueStatus = async () => {
   const now = new Date();
   const overdueInstallments = await prisma.loanInstallment.findMany({

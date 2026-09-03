@@ -1,3 +1,10 @@
+/**
+ * Recruitment validation schemas
+ * - recruitmentSchema: job posting with title, openings, salary range, and dates
+ * - applicantSchema: job applicant with personal info, education, and resume
+ * - updateApplicantSchema: partial update; includes status tracking (NEW -> HIRED/REJECTED)
+ */
+
 import { z } from 'zod';
 
 export const recruitmentSchema = z.object({
@@ -10,6 +17,7 @@ export const recruitmentSchema = z.object({
   responsibilities: z.string().optional(),
   location: z.string().optional(),
   employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN', 'TEMPORARY']),
+  // Salary range; min/max are optional independently
   salaryRangeMin: z.number().min(0, 'Minimum salary must be positive').optional(),
   salaryRangeMax: z.number().min(0, 'Maximum salary must be positive').optional(),
   postedDate: z.string().datetime().optional(),
@@ -18,6 +26,7 @@ export const recruitmentSchema = z.object({
 
 export const updateRecruitmentSchema = recruitmentSchema.partial();
 
+// Education history entry used within applicant schema
 export const educationEntrySchema = z.object({
   degree: z.string().optional(),
   institution: z.string().optional(),

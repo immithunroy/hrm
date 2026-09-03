@@ -1,9 +1,16 @@
+/**
+ * Announcement validation schemas
+ * - createAnnouncementSchema: create an announcement with title, content, and priority
+ * - updateAnnouncementSchema: partial update; supports active toggle and scheduling
+ */
+
 import { z } from 'zod';
 
 export const createAnnouncementSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   content: z.string().min(1, 'Content is required').max(5000),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
+  // Optional scheduling: announcement only visible between startsAt and expiresAt
   startsAt: z.string().optional(),
   expiresAt: z.string().optional()
 });

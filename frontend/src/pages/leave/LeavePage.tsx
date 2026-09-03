@@ -1,3 +1,19 @@
+/**
+ * LeavePage - Leave request management and approval page.
+ *
+ * Features:
+ * - Leave request list with status badges (PENDING, APPROVED, REJECTED)
+ * - Approve/Reject actions for pending leave requests
+ * - New leave request creation modal with employee, type, date range, and reason
+ * - Leave types: VACATION, SICK, PERSONAL, MATERNITY, PATERNITY, etc.
+ * - Summary stats: Pending, Approved, Rejected counts, total approved days
+ * - Leave statistics from /leave/stats endpoint
+ *
+ * State management:
+ * - Parallel data fetches for leave requests, stats, and employee list
+ * - Processing state per request ID to disable buttons during API calls
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,

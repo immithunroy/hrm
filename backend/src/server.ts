@@ -1,3 +1,20 @@
+/**
+ * Server Entry Point
+ *
+ * Bootstraps the Express HTTP server with:
+ * - Security middleware (helmet, CORS)
+ * - JSON body parsing (10 MB limit for large payloads)
+ * - Static file serving for uploads (CVs, profile images)
+ * - REST API routes under /api
+ * - Socket.IO for real-time features (device sync, notifications)
+ * - Global error handling (404 + operational/programmatic errors)
+ * - ZKT biometric device connection (non-blocking)
+ * - Google Bangladesh holiday sync on startup and daily interval
+ * - Graceful shutdown on SIGINT/SIGTERM (Prisma disconnect + server close)
+ *
+ * Run: `npm run dev` (or `ts-node src/server.ts`)
+ * Env vars required: DATABASE_URL, JWT_SECRET, CORS_ORIGIN (optional), PORT (default 5000)
+ */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -32,8 +49,10 @@ import { migrateUsername } from './migrations/migrateUsername';
 dotenv.config();
 
 const app = express();
+// Trust first proxy — required for rate-limiting and logging behind a reverse proxy (nginx, ALB)
 app.set('trust proxy', true);
 const server = http.createServer(app);
+// Socket.IO wraps the HTTP server for WebSocket support (device sync, live notifications)
 const io = new Server(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',

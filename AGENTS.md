@@ -52,3 +52,33 @@
 - Database port: 5432 (internal)
 - Redis: None (removed)
 - CORS_ORIGIN: http://localhost:8060,http://127.0.0.1:8060,http://103.177.54.6:8060
+
+### Documentation
+- `docs/API.md` — Complete API reference (107 endpoints)
+- `docs/DATABASE.md` — Database schema documentation (17 models, 25+ enums)
+- `docs/ARCHITECTURE.md` — System design and key decisions
+- `docs/BACKEND.md` — Backend developer guide
+- `docs/FRONTEND.md` — Frontend developer guide
+- `docs/DEPLOYMENT.md` — Deployment and operations guide
+
+### Code Conventions (Backend)
+- Follow Routes → Controllers → Services pattern
+- Use Zod for all input validation
+- Use Prisma for all database access (no raw SQL)
+- Use `async/await` with `try/catch` in controllers
+- Use `AppError` class for operational errors
+- Use `authenticateToken` + `authorize`/`authorizeOrSelf` middleware for auth
+- All timestamps in Asia/Dhaka timezone (UTC+6)
+- Work day boundary: 04:00 to next day 04:00 (not midnight)
+- No comments in code unless requested
+
+### Code Conventions (Frontend)
+- Functional components with React hooks
+- TypeScript for all components and props
+- Tailwind CSS for all styling (no CSS modules)
+- shadcn/ui components from `components/ui/`
+- `useAuth()` for authentication state
+- `api` singleton for all HTTP requests
+- Format dates with `lib/format.ts` utilities
+- Status colors from `lib/colors.ts`
+- No comments in code unless requested
