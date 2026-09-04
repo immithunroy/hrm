@@ -464,17 +464,22 @@ export const deleteAttendanceRecord = async (req: Request, res: Response, next: 
  */
 export const getTodayAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Use explicit Dhaka offset (UTC+6) instead of relying on server TZ env.
+    // The work day runs from 04:00 to next day 04:00 Dhaka time, but for
+    // "today's attendance" we just need the Dhaka calendar day bounds.
+    const now = new Date();
+    const dhakaMs = now.getTime() + DHAKA_OFFSET_MS;
+    const todayStr = new Date(dhakaMs).toISOString().slice(0, 10);
+    const todayStart = dhakaMidnight(
+      ...todayStr.split('-').map(Number) as [number, number, number]
+    );
+    const todayEnd = new Date(todayStart.getTime() + 86400000);
 
     const whereCondition: any = {
-      checkIn: {
-        gte: today,
-        lt: tomorrow
-      }
+      OR: [
+        { date: { gte: todayStart, lt: todayEnd } },
+        { checkIn: { gte: todayStart, lt: todayEnd } }
+      ]
     };
     // EMPLOYEE role can only see their own attendance
     if (req.userRole === 'EMPLOYEE') {
