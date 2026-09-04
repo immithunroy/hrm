@@ -268,7 +268,11 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const employeeId = req.userId;
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (newPassword !== confirmPassword) {
+      return next(new AppError('New passwords do not match', 422));
+    }
 
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee || !employee.password) {
@@ -278,6 +282,10 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     const isMatch = await compare(currentPassword, employee.password);
     if (!isMatch) {
       return next(new AppError('Current password is incorrect', 401));
+    }
+
+    if (currentPassword === newPassword) {
+      return next(new AppError('New password must be different from current password', 422));
     }
 
     await prisma.employee.update({
